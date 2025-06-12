@@ -2,12 +2,12 @@
 # DH Platform Libraries
 # -------------------------------------------
 cryptography==38.0.4
-digitalhub==0.11.0b6
+digitalhub==0.11.0
 # -------------------------------------------
 # Core Scientific Libraries
 # -------------------------------------------
 numpy==1.24.4
-snaphu==0.1.0
+snaphu==0.4.1
 # -------------------------------------------
 # Raster and Vector Geospatial Processing
 # -------------------------------------------

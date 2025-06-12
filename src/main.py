@@ -10,6 +10,7 @@ import tempfile
 import numpy as np
 import shutil
 import digitalhub as dh
+from utils.skd_handler import upload_artifact
 
 tempfile.tempdir = "/data/disk1/lbergamasco/AIxPA/tmp/"
 
@@ -172,9 +173,12 @@ UNIT[\"m\", 1.0], AXIS[\"Easting\", EAST], AXIS[\"Northing\", NORTH], AUTHORITY[
                 node_id="writeTCtif",source="terrain-correction")
     g4.run()
 
-# "{'s1_ascending':'s1_ascending', 's1_descending': 's1_descending', 'start':'2021-03-01', 'end':'2021-03-30','outputArtifactName': 'landslide_output'}"
+# python main.py "{'s1_ascending':'s1_ascending', 's1_descending': 's1_descending', 'start':'2021-03-01', 'end':'2021-03-30','outputArtifactName': 'landslide_output'}"
 
 if __name__ == "__main__":
+    
+    global output_path
+
     args = sys.argv[1].replace("'","\"")
     json_input = json.loads(args)
     maindir = '.'
@@ -187,27 +191,46 @@ if __name__ == "__main__":
     startDate = json_input['start'] # start date (e.g., '2021-03-01')
     endDate = json_input['end'] # end date (e.g., '2021-03-30')
     output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
-    input_path_ascending = datapath + '/ascending'
-    input_path_descending = datapath + '/descending'
+    data_ascending_folder = os.path.join(datapath, 'ascending')
+    data_descending_folder = os.path.join(datapath, 'descending')
+    output_path = os.path.join(maindir, output_path)
+
+    # create data folders
+    data_path = os.path.join(maindir, datapath)
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)  
+    # create ascending and descending data folders
+    if not os.path.exists(data_ascending_folder):
+        os.makedirs(data_ascending_folder)   
+    if not os.path.exists(data_descending_folder):
+        os.makedirs(data_descending_folder)
+    # create output directory
+    output_path = os.path.join(maindir, output_path)  
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)    
 
     print(f"Input parameters: s1_ascending={s1_a}, s1_descending={s1_d}, startDate={startDate}, endDate={endDate}, output_artifact_name={output_artifact_name}")
     # download data
     project = dh.get_or_create_project(project_name)
-    print(f"Downloading artifacts for project: {project_name}")
+    # print(f"Downloading artifacts for project: {project_name}")
     # download s1 ascending data
-    print(f"Downloading artifact: {s1_a}, {s1_a}")  
-    data_s1a = project.get_artifact(s1_a)
-    input_path_ascending = data_s1a.download(datapath, overwrite=True)
+    # print(f"Downloading artifact: {s1_a} inside {data_ascending_folder}")  
+    # data_s1a = project.get_artifact(s1_a)
+    # input_path_ascending = data_s1a.download(data_ascending_folder, overwrite=True)
     # download s1 descending data
-    print(f"Downloading artifact: {s1_d}, {s1_d}")  
-    data_s1d = project.get_artifact(s1_d)
-    input_path_descending = data_s1d.download(datapath, overwrite=True)
-    # create output directory
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)    
+    # print(f"Downloading artifact: {s1_d} inside {data_descending_folder}")
+    # data_s1d = project.get_artifact(s1_d)
+    # input_path_descending = data_s1d.download(data_ascending_folder, overwrite=True)
+    print(f"input_path_ascending = {data_ascending_folder}")
+    print(f"input_path_descending = {data_descending_folder}")
 
+    input_path_ascending = data_ascending_folder
+    input_path_descending = data_descending_folder
+        
     list_files_ascending = [f for f in os.listdir(input_path_ascending) if ".zip" in f]
+    print(f"list_files_ascending: {list_files_ascending}")
     list_files_descending = [f for f in os.listdir(input_path_descending) if ".zip" in f]
+    print(f"list_files_descending: {list_files_descending}")
     list_dates_ascending = [f[17:25] for f in list_files_ascending]
     list_dates_descending = [f[17:25] for f in list_files_descending]
     sorted_indeces_ascending = sorted(range(len(list_dates_ascending)), key=list_dates_ascending.__getitem__)
@@ -237,5 +260,5 @@ if __name__ == "__main__":
                        output_path_ascending,subswath='IW2')
         
     #upload output artifact
-    #print(f"Upoading artifact: {output_artifact_name}, {output_artifact_name}")
+    print(f"Upoading artifact: {output_artifact_name}, {output_artifact_name}")
     #upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=output_path)
