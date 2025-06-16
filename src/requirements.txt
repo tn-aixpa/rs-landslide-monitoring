@@ -11,4 +11,4 @@ snaphu==0.4.1
 # -------------------------------------------
 # Raster and Vector Geospatial Processing
 # -------------------------------------------
-rasterio==1.3.8
+rasterio==1.4.3

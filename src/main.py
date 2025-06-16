@@ -11,13 +11,20 @@ import numpy as np
 import shutil
 import digitalhub as dh
 from utils.skd_handler import upload_artifact
+from osgeo import gdal
+gdal.UseExceptions()
 
-tempfile.tempdir = "/data/disk1/lbergamasco/AIxPA/tmp/"
+tempfile.tempdir
 
 def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     iw = subswath
-    unwrap_folder = "phase_unwrapping/"
+    #unwrap_folder = "phase_unwrapping/"
     output_path = "{}{}/".format(output_path,subswath)
+
+    print(f"output_path = {output_path}")
+    print(f"unwrap_folder = {unwrap_folder}")
+
+
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
     if os.path.isdir(unwrap_folder):
@@ -176,27 +183,35 @@ UNIT[\"m\", 1.0], AXIS[\"Easting\", EAST], AXIS[\"Northing\", NORTH], AUTHORITY[
 # python main.py "{'s1_ascending':'s1_ascending', 's1_descending': 's1_descending', 'start':'2021-03-01', 'end':'2021-03-30','outputArtifactName': 'landslide_output'}"
 
 if __name__ == "__main__":
-    
-    global output_path
+
+    global output_path, unwrap_folder
 
     args = sys.argv[1].replace("'","\"")
     json_input = json.loads(args)
     maindir = '.'
-    datapath = 'data'
-    output_path = 'output'
-    
+    data_folder = 'data'
+    temp_folder = 'tmp'
+    output_folder = 'output'
+    phase_wrapping_folder = 'phase_unwrapping'
+
+    # read input parameters
     s1_a = json_input['s1_ascending'] # sentinel-1 ascending data artifact name (e.g., 's1_ascending')
     s1_d = json_input['s1_descending'] # sentinel-1 descending data artifact name (e.g., 's1_descending')
-    project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
     startDate = json_input['start'] # start date (e.g., '2021-03-01')
     endDate = json_input['end'] # end date (e.g., '2021-03-30')
     output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
-    data_ascending_folder = os.path.join(datapath, 'ascending')
-    data_descending_folder = os.path.join(datapath, 'descending')
-    output_path = os.path.join(maindir, output_path)
+        
+    # project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
+    
+    # define paths
+    data_path = os.path.join(maindir, data_folder)
+    data_ascending_folder = os.path.join(data_path, 'ascending')
+    data_descending_folder = os.path.join(data_path, 'descending')
+    output_path = os.path.join(data_path, output_folder)
+    tempfile.tempdir = os.path.join(data_path, temp_folder)
+    unwrap_folder = os.path.join(tempfile.tempdir, phase_wrapping_folder)
 
     # create data folders
-    data_path = os.path.join(maindir, datapath)
     if not os.path.exists(data_path):
         os.makedirs(data_path)  
     # create ascending and descending data folders
@@ -205,27 +220,31 @@ if __name__ == "__main__":
     if not os.path.exists(data_descending_folder):
         os.makedirs(data_descending_folder)
     # create output directory
-    output_path = os.path.join(maindir, output_path)  
     if not os.path.exists(output_path):
-        os.makedirs(output_path)    
+        os.makedirs(output_path)
+    # create temp directory
+    if (not os.path.exists(tempfile.tempdir)):
+        os.makedirs(tempfile.tempdir)
 
     print(f"Input parameters: s1_ascending={s1_a}, s1_descending={s1_d}, startDate={startDate}, endDate={endDate}, output_artifact_name={output_artifact_name}")
     # download data
     project = dh.get_or_create_project(project_name)
-    # print(f"Downloading artifacts for project: {project_name}")
+    print(f"Downloading artifacts for project: {project_name}")
     # download s1 ascending data
-    # print(f"Downloading artifact: {s1_a} inside {data_ascending_folder}")  
-    # data_s1a = project.get_artifact(s1_a)
-    # input_path_ascending = data_s1a.download(data_ascending_folder, overwrite=True)
+    print(f"Downloading artifact: {s1_a} inside {data_ascending_folder}")  
+    data_s1a = project.get_artifact(s1_a)
+    input_path_ascending = data_s1a.download(data_ascending_folder, overwrite=True)
     # download s1 descending data
-    # print(f"Downloading artifact: {s1_d} inside {data_descending_folder}")
-    # data_s1d = project.get_artifact(s1_d)
-    # input_path_descending = data_s1d.download(data_ascending_folder, overwrite=True)
+    print(f"Downloading artifact: {s1_d} inside {data_descending_folder}")
+    data_s1d = project.get_artifact(s1_d)
+    input_path_descending = data_s1d.download(data_ascending_folder, overwrite=True)
     print(f"input_path_ascending = {data_ascending_folder}")
     print(f"input_path_descending = {data_descending_folder}")
+    print(f"tempfile.tempdir = {tempfile.tempdir}")
+    print(f"output_path = {output_path}")
 
-    input_path_ascending = data_ascending_folder
-    input_path_descending = data_descending_folder
+    # input_path_ascending = data_ascending_folder
+    # input_path_descending = data_descending_folder
         
     list_files_ascending = [f for f in os.listdir(input_path_ascending) if ".zip" in f]
     print(f"list_files_ascending: {list_files_ascending}")
@@ -242,8 +261,10 @@ if __name__ == "__main__":
         filename_descending2 = list_files_descending[sorted_indeces_descending[i]]
         output_path = "{}-{}".format(list_dates_descending[sorted_indeces_descending[i-1]],
                                      list_dates_ascending[sorted_indeces_ascending[i]])
-        output_path_ascending = "{}/ascending/".format(output_path)
-        output_path_descending = "{}/descending/".format(output_path)
+        output_path_ascending = os.path.join(maindir, data_path, "{}/ascending/".format(output_path))
+        output_path_descending = os.path.join(maindir, data_path, "{}/descending/".format(output_path))
+        print(f"output_path_ascending = {output_path_ascending}")
+        print(f"output_path_descending = {output_path_descending}")
         if not os.path.isdir(output_path_ascending):
             os.makedirs(output_path_ascending)
         if not os.path.isdir(output_path_descending):
