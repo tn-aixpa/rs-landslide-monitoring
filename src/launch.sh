@@ -15,5 +15,5 @@ echo "GDAL DATA AFTER EXPORT:"
 echo $GDAL_DATA
 echo "PROJ_LIB AFTER EXPORT"
 echo $PROJ_LIB
-python main.py "{'s1_ascending': '$1', 's1_descending': '$2', 'start':$3, 'end':$4, 'outputArtifactName': '$5'}"
+python main.py "{'s1_ascending': '$1', 's1_descending': '$2', 'start':'$3', 'end':'$4', 'outputArtifactName': '$5'}"
 exit

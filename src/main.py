@@ -201,7 +201,7 @@ if __name__ == "__main__":
     endDate = json_input['end'] # end date (e.g., '2021-03-30')
     output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
         
-    # project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
+    project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
     
     # define paths
     data_path = os.path.join(maindir, data_folder)
