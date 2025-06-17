@@ -192,8 +192,8 @@ if __name__ == "__main__":
     # read input parameters
     s1_a = json_input['s1_ascending'] # sentinel-1 ascending data artifact name (e.g., 's1_ascending')
     s1_d = json_input['s1_descending'] # sentinel-1 descending data artifact name (e.g., 's1_descending')
-    startDate = json_input['start'] # start date (e.g., '2021-03-01')
-    endDate = json_input['end'] # end date (e.g., '2021-03-30')
+    startDate = json_input['startDate'] # start date (e.g., '2021-03-01')
+    endDate = json_input['endDate'] # end date (e.g., '2021-03-30')
     output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
         
     project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
