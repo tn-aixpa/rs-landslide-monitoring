@@ -18,13 +18,8 @@ tempfile.tempdir
 
 def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     iw = subswath
-    #unwrap_folder = "phase_unwrapping/"
+    unwrap_folder = "phase_unwrapping/"
     output_path = "{}{}/".format(output_path,subswath)
-
-    print(f"output_path = {output_path}")
-    print(f"unwrap_folder = {unwrap_folder}")
-
-
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
     if os.path.isdir(unwrap_folder):
@@ -148,7 +143,7 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
 
     snaphu.unwrap(igram, coh, nlooks=23.8, cost="defo", ntiles=(10,10), init='mcf',
                   tile_overlap=(200,200), nproc=4, min_region_size=200, single_tile_reoptimize=False,
-                  regrow_conncomps=False,unw=unw, conncomp=conncomp)
+                  regrow_conncomps=False,mask=mask,unw=unw, conncomp=conncomp)
     
     g4 = Graph()
     g4.add_node(Operator("Read",file=output_path+"interferogram_deburst.dim"), node_id="read1")
@@ -160,7 +155,7 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     g4.add_node(Operator("PhaseToDisplacement"), node_id="phasetodispl",source="Import")
     g4.add_node(Operator("BandMerge"), node_id="BandMerge",source=["Import","phasetodispl"])
     tc = Operator("Terrain-Correction")
-    tc.sourceBandNames = ["displacement_VV","coh_{}_VV_{}_{}".format(iw,data1,data2)]
+    tc.sourceBandNames = "displacement,coh_{}_VV_{}_{}".format(iw,data1,data2)
     tc.pixelSpacingInMeter = 13.94028
     tc.pixelSpacingInDegree = 1.2522766588905684E-4
     tc.mapProjection = "PROJCS[\"ETRS89 / UTM zone 32N\", GEOGCS[\"ETRS89\", \
@@ -272,13 +267,13 @@ if __name__ == "__main__":
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
         interferometry(input_path_descending, filename_descending1, filename_descending2, 
                        output_path_descending,subswath='IW1')
-        interferometry(input_path_descending, filename_descending1, filename_descending2, 
-                       output_path_descending,subswath='IW2')
-        print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
-        interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
-                       output_path_ascending,subswath='IW1')
-        interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
-                       output_path_ascending,subswath='IW2')
+        # interferometry(input_path_descending, filename_descending1, filename_descending2, 
+        #                output_path_descending,subswath='IW2')
+        # print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
+        # interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
+        #                output_path_ascending,subswath='IW1')
+        # interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
+        #                output_path_ascending,subswath='IW2')
         
     #upload output artifact
     print(f"Upoading artifact: {output_artifact_name}, {output_artifact_name}")
