@@ -232,7 +232,7 @@ if __name__ == "__main__":
     # download s1 descending data
     print(f"Downloading artifact: {s1_d} inside {data_descending_folder}")
     data_s1d = project.get_artifact(s1_d)
-    input_path_descending = data_s1d.download(data_ascending_folder, overwrite=True)
+    input_path_descending = data_s1d.download(data_descending_folder, overwrite=True)
     print(f"input_path_ascending = {data_ascending_folder}")
     print(f"input_path_descending = {data_descending_folder}")
     print(f"tempfile.tempdir = {tempfile.tempdir}")
