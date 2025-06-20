@@ -78,7 +78,7 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     g1.run()
     #BackGeocoding
     g2 = Graph()
-    filelist = ",".join(output_path+f for f in os.listdir(output_path) if "split_Orb.dim" in f)
+    filelist = "{},{}".format(output_path+file1orbit+".dim",output_path+file2orbit+".dim")#",".join(output_path+f for f in 
     reader = Operator("ProductSet-Reader", fileList=filelist)
     g2.add_node(reader,node_id="Back-Geocoding_Reader")#,source="writer1orbit,writer1orbit")
     geocoding = Operator("Back-Geocoding", demName="SRTM 3Sec",#"SRTM 1Sec HGT (Auto Download)",
@@ -267,14 +267,14 @@ if __name__ == "__main__":
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
         interferometry(input_path_descending, filename_descending1, filename_descending2, 
                        output_path_descending,subswath='IW1')
-        # interferometry(input_path_descending, filename_descending1, filename_descending2, 
-        #                output_path_descending,subswath='IW2')
-        # print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
-        # interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
-        #                output_path_ascending,subswath='IW1')
-        # interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
-        #                output_path_ascending,subswath='IW2')
+        interferometry(input_path_descending, filename_descending1, filename_descending2, 
+                       output_path_descending,subswath='IW2')
+        print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
+        interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
+                       output_path_ascending,subswath='IW1')
+        interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
+                       output_path_ascending,subswath='IW2')
         
     #upload output artifact
     print(f"Upoading artifact: {output_artifact_name}, {output_artifact_name}")
-    #upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=output_path)
+    upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=output_path)
