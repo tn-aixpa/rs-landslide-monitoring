@@ -14,6 +14,7 @@ from utils.skd_handler import upload_artifact
 from osgeo import gdal
 gdal.UseExceptions()
 from shapely.wkt import loads
+import geopandas as gpd
 
 tempfile.tempdir
 
@@ -176,7 +177,7 @@ UNIT[\"m\", 1.0], AXIS[\"Easting\", EAST], AXIS[\"Northing\", NORTH], AUTHORITY[
                 node_id="writeTCtif",source="terrain-correction")
     g4.run()
 
-def v_ew_displ(path :str,list_filenames: list, clip:bool=False) -> np.float32:
+def v_ew_displ(path :str,list_filenames: list) -> np.float32:
     """
     Parameters
     ----------
@@ -184,9 +185,6 @@ def v_ew_displ(path :str,list_filenames: list, clip:bool=False) -> np.float32:
         path of the folder containing the files to process.
     list_filenames : list
         the list of the files to process.
-    clip : bool, optional
-        If it is True, the function will clip the
-            images according to the ROI. The default is False.
 
     Returns
     -------
@@ -204,18 +202,19 @@ def v_ew_displ(path :str,list_filenames: list, clip:bool=False) -> np.float32:
         an array containing the coherence map time series acquired in ascending direction
     coh_desc_time_series: np.float32
         an array containing the coherence map time series acquired in descending direction
+    proj: string
+        projection of the output files
+    geoT: list
+        the geo transformation of the output files
     """
     n_time = len(list_filenames)
     #trentino_boundary_path = r"D:\AIxPA\Interferometria\ammprv_v.shp"
-    if clip:
-        ds = gdal.Open(os.path.join(path,"ROI_extent.tif"),gdal.GA_ReadOnly)
-        ulx, xres, xskew, uly, yskew, yres  = ds.GetGeoTransform()
-        sizeX = ds.RasterXSize * xres
-        sizeY = ds.RasterYSize * yres
-        lrx = ulx + sizeX
-        lry = uly + sizeY
-        ds = None
-        window = (ulx, uly, lrx, lry)
+    #get geotrasformation and projection
+    geometry = loads(geo_wkt)
+    aoi = gpd.GeoDataFrame(geometry=[geometry],crs="EPSG:4326")
+    aoi = aoi.to_crs(25832)
+    bounds = aoi.total_bounds
+    window = (bounds[0], bounds[3], bounds[2], bounds[1])
     for i,f in enumerate(list_filenames):
         file_path = os.path.join(path,f)
         asc_file_path = os.path.join(file_path,"ascending")
@@ -236,25 +235,28 @@ def v_ew_displ(path :str,list_filenames: list, clip:bool=False) -> np.float32:
                   cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True,
                   options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         os.remove(filename_iw1[:-4]+"_m.tif")
-        if clip:
-            #clipping for ascending images
-            filename_ascending = [fi for fi in os.listdir(asc_file_path) if ".tif" in fi][0]
-            output_filename_ascending = filename_ascending[:-4]+"_clip.tif"
-            gdal.Translate(os.path.join(asc_file_path,output_filename_ascending), 
-                           os.path.join(asc_file_path,filename_ascending), projWin = window,
-                           projWinSRS = "EPSG:25832")
-            filename_ascending = output_filename_ascending
-            
-            #clipping for descending images
-            filename_descending = [fi for fi in os.listdir(desc_file_path) if ".tif" in fi][0]
-            output_filename_descending = filename_descending[:-4]+"_clip.tif"
-            gdal.Translate(os.path.join(desc_file_path,output_filename_descending), 
-                           os.path.join(desc_file_path,filename_descending), projWin = window,
-                           projWinSRS = "EPSG:25832")
-            filename_descending = output_filename_descending
-        else:
-            filename_ascending = [fi for fi in os.listdir(asc_file_path) if "mosaic.tif" in fi][0]
-            filename_descending = [fi for fi in os.listdir(desc_file_path) if "mosaic.tif" in fi][0]
+
+        #clipping for ascending images
+        filename_ascending = [fi for fi in os.listdir(asc_file_path) if ".tif" in fi][0]
+        output_filename_ascending = filename_ascending[:-4]+"_clip.tif"
+        ds_trans = gdal.Translate(os.path.join(asc_file_path,output_filename_ascending), 
+                                os.path.join(asc_file_path,filename_ascending), projWin = window,
+                                projWinSRS = "EPSG:25832")
+        proj = ds_trans.GetProjection()
+        geoT = ds_trans.GetGeoTransform()
+        ds_trans = None
+        filename_ascending = output_filename_ascending
+        
+        #clipping for descending images
+        filename_descending = [fi for fi in os.listdir(desc_file_path) if ".tif" in fi][0]
+        output_filename_descending = filename_descending[:-4]+"_clip.tif"
+        gdal.Translate(os.path.join(desc_file_path,output_filename_descending), 
+                        os.path.join(desc_file_path,filename_descending), projWin = window,
+                        projWinSRS = "EPSG:25832")
+        filename_descending = output_filename_descending
+        #else:
+            #filename_ascending = [fi for fi in os.listdir(asc_file_path) if "mosaic.tif" in fi][0]
+            #filename_descending = [fi for fi in os.listdir(desc_file_path) if "mosaic.tif" in fi][0]
         
         #reading acending and descending images
         print(r"Reading: {}".format(os.path.join(asc_file_path,filename_ascending)))
@@ -290,7 +292,7 @@ def v_ew_displ(path :str,list_filenames: list, clip:bool=False) -> np.float32:
         desc_time_series[:,:,i] = np.copy(desc)
         coh_asc_time_series[:,:,i] = np.copy(coh_asc)
         coh_desc_time_series[:,:,i] = np.copy(coh_desc)
-    return v_displ_time_series, ew_displ_time_series, coh_time_series, asc_time_series, desc_time_series, coh_asc_time_series, coh_desc_time_series
+    return v_displ_time_series, ew_displ_time_series, coh_time_series, asc_time_series, desc_time_series, coh_asc_time_series, coh_desc_time_series, proj, geoT
 
 
 # python main.py "{'s1_ascending':'s1_ascending', 's1_descending': 's1_descending', 'start':'2021-03-01', 'end':'2021-03-30','outputArtifactName': 'landslide_output'}"
@@ -406,23 +408,9 @@ if __name__ == "__main__":
     
     # Step 2. // To process the interferometric data and calculate the vertical and east-west displacements
     list_filenames = [f for f in os.listdir(output_path) if os.path.isdir(os.path.join(output_path, f))] # which list is this??
-    #get geotrasformation and projection
-    geometry = loads(geo_wkt)
-    ds = gdal.Open(os.path.join(output_path,"ROI_extent.tif"),gdal.GA_ReadOnly)
-    geoT = ds.GetGeoTransform()
-    proj = ds.GetProjection()
-    ulx, xres, xskew, uly, yskew, yres  = geoT
-    sizeX = ds.RasterXSize * xres   
-    sizeY = ds.RasterYSize * yres
-    ROI_width = ds.RasterXSize
-    ROI_height = ds.RasterYSize
-    lrx = ulx + sizeX
-    lry = uly + sizeY
-    ds = None
-    window = (ulx, uly, lrx, lry)
     
     #calculate the vertical and east-west displacements
-    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc = v_ew_displ(output_path, list_filenames,clip=False)
+    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT = v_ew_displ(output_path, list_filenames)
     #keep only the interferometry maps with a mean coherence value higher than 0.3
     mean_coh = np.average(coh_maps,axis=(0,1))
     # keep_img_mask = mean_coh>=th
@@ -477,23 +465,12 @@ if __name__ == "__main__":
     masked_cum_sum_desc = np.copy(cum_sum_desc)
     masked_cum_sum_desc[avg_coh_desc<0.4] = np.nan
     
-    # #get the slopes for the analyzed area
-    # ds_slope = gdal.Translate(slope_map_path[:-4]+"_clipped.tif", slope_map_path, 
-    #                           projWin = window, projWinSRS = "EPSG:25832", width = ROI_width,
-    #                           height = ROI_height, outputSRS  = "EPSG:25832")
-    # slope_map = ds_slope.ReadAsArray()
-    # ds_slope = None
-    # negl_risk_mask = slope_map<=18
-    # low_risk_mask = np.logical_and(slope_map>18,slope_map<=30)
-    # low_risk_mask = np.logical_and(slope_map>30,slope_map<=43)
-    # middle_risk_mask = slope_map>43
-    
     # #mask negligible splope areas
     # masked_avg_v_displ_map[negl_risk_mask] = np.nan
     # masked_avg_ew_displ_map[negl_risk_mask] = np.nan
     
     #save the stacked masked vertical displacement maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'serie_temporale_scostamento_verticale.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_verticale.tif'), 
                                     masked_v_displ_maps.shape[1], masked_v_displ_maps.shape[0], masked_v_displ_maps.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -506,7 +483,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the masked cumulative vertical displacement maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'somma_cumulata_scostamento_verticale.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'somma_cumulata_scostamento_verticale.tif'), 
                                     masked_cum_sum_v_displ_map.shape[1], masked_cum_sum_v_displ_map.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -516,7 +493,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked masked east-west displacement maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'serie_temporale_scostamento_orizzontale.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_orizzontale.tif'), 
                                     masked_ew_displ_maps.shape[1], masked_ew_displ_maps.shape[0], masked_ew_displ_maps.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -529,7 +506,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the masked cumulative east-west displacement map
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'somma_cumulata_scostamento_orizzontale.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'somma_cumulata_scostamento_orizzontale.tif'), 
                                     masked_cum_sum_ew_displ_map.shape[1], masked_cum_sum_ew_displ_map.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -539,7 +516,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked masked total displacement maps ascending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'serie_temporale_scostamento_totale_ascendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_totale_ascendente.tif'), 
                                     asc.shape[1], asc.shape[0], asc.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -551,7 +528,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the masked cumulative total displacement map ascending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'somma_cumulata_scostamento_totale_ascendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'somma_cumulata_scostamento_totale_ascendente.tif'), 
                                     masked_cum_sum_asc.shape[1], masked_cum_sum_asc.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -561,7 +538,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked masked total displacement maps descending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'serie_temporale_scostamento_totale_discendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_totale_discendente.tif'), 
                                     desc.shape[1], desc.shape[0], desc.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -573,7 +550,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the masked cumulative total displacement map ascending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'somma_cumulata_scostamento_totale_discendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'somma_cumulata_scostamento_totale_discendente.tif'), 
                                     masked_cum_sum_desc.shape[1], masked_cum_sum_desc.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -583,7 +560,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the average coherence map
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'mappa_coerenza_media.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'mappa_coerenza_media.tif'), 
                                     avg_coh_map.shape[1], avg_coh_map.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -593,7 +570,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked coherence maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'serie_temporale_mappe_coerenza.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_mappe_coerenza.tif'), 
                                     avg_coh_map.shape[1], avg_coh_map.shape[0], coh_maps.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -604,7 +581,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the average coherence map ascending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'mappa_coerenza_media_ascendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'mappa_coerenza_media_ascendente.tif'), 
                                     avg_coh_asc.shape[1], avg_coh_asc.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -614,7 +591,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked coherence maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'serie_temporale_mappe_coerenza_ascendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_mappe_coerenza_ascendente.tif'), 
                                     coh_asc.shape[1], coh_asc.shape[0], coh_asc.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -625,7 +602,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the average coherence map descending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'mappa_coerenza_media_dscendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'mappa_coerenza_media_dscendente.tif'), 
                                     avg_coh_desc.shape[1], avg_coh_desc.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -635,7 +612,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked coherence maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(path,'serie_temporale_mappe_coerenza_discendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_mappe_coerenza_discendente.tif'), 
                                     coh_desc.shape[1], coh_desc.shape[0], coh_desc.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
