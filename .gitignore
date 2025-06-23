@@ -6,4 +6,5 @@ output
 bosco
 *.env
 data
-
+*.hdr
+phase_unwrapping
