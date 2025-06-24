@@ -358,11 +358,11 @@ if __name__ == "__main__":
     data_s1d = project.get_artifact(s1_d)
     input_path_descending = data_s1d.download(data_descending_folder, overwrite=True)
     # download shape file if provided
+    print(f"Downloading shape artifact: {shapeArtifact} inside {trentino_boundary_folder}")
     shape = project.get_artifact(shapeArtifact)
     trentino_boundary_folder = shape.download(trentino_boundary_folder, overwrite=True)
     trentino_boundary_path = os.path.join(trentino_boundary_folder, shapeFileName)
 
-    
     print(f"input_path_ascending = {data_ascending_folder}")
     print(f"input_path_descending = {data_descending_folder}")
     print(f"tempfile.tempdir = {tempfile.tempdir}")
