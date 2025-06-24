@@ -20,7 +20,7 @@ tempfile.tempdir
 
 def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     iw = subswath
-    unwrap_folder = "phase_unwrapping/"
+    # unwrap_folder = "phase_unwrapping/"
     output_path = "{}{}/".format(output_path,subswath)
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
@@ -366,8 +366,14 @@ if __name__ == "__main__":
     print(f"input_path_ascending = {data_ascending_folder}")
     print(f"input_path_descending = {data_descending_folder}")
     print(f"tempfile.tempdir = {tempfile.tempdir}")
+    print(f"unwrap_folder = {unwrap_folder}")
     print(f"output_path = {output_path}")
     print(f"trentino_boundary_path = {trentino_boundary_path}")
+    
+    # Step 1. // To calculate the interferometric data between the ascending and descending images
+    # The interferometric data is calculated between the ascending and descending images, 
+    # and the results are stored in the output_path directory.
+    print("Step 1: Calculating interferometric data...")
 
     # input_path_ascending = data_ascending_folder
     # input_path_descending = data_descending_folder
@@ -406,18 +412,17 @@ if __name__ == "__main__":
         interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
                        output_path_ascending,subswath='IW2')
     
-    # Step 2. // To process the interferometric data and calculate the vertical and east-west displacements
+    # Step 2. // To calculate the vertical and east-west displacements from the interferometric data
+    # The vertical and east-west displacements are calculated from the interferometric data,
+    # and the results are stored in the output_path directory.
+    print("Step 2: Calculating vertical and east-west displacements...")
     list_filenames = [f for f in os.listdir(output_path) if os.path.isdir(os.path.join(output_path, f))] # which list is this??
     
     #calculate the vertical and east-west displacements
     v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT = v_ew_displ(output_path, list_filenames)
     #keep only the interferometry maps with a mean coherence value higher than 0.3
     mean_coh = np.average(coh_maps,axis=(0,1))
-    # keep_img_mask = mean_coh>=th
-    # v_displ_maps = v_displ_maps[:,:,keep_img_mask]
-    # ew_displ_maps = ew_displ_maps[:,:,keep_img_mask]
-    # coh_maps = coh_maps[:,:,keep_img_mask]
-    n_time = ew_displ_maps.shape[2]#int(np.sum(keep_img_mask))
+    n_time = ew_displ_maps.shape[2]
     offset_ew_displ_maps = np.zeros(n_time,dtype=np.float32)
     offset_v_displ_maps = np.zeros(n_time,dtype=np.float32)
     offset_asc = np.zeros(n_time,dtype=np.float32)
@@ -465,10 +470,6 @@ if __name__ == "__main__":
     masked_cum_sum_desc = np.copy(cum_sum_desc)
     masked_cum_sum_desc[avg_coh_desc<0.4] = np.nan
     
-    # #mask negligible splope areas
-    # masked_avg_v_displ_map[negl_risk_mask] = np.nan
-    # masked_avg_ew_displ_map[negl_risk_mask] = np.nan
-    
     #save the stacked masked vertical displacement maps
     target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_verticale.tif'), 
                                     masked_v_displ_maps.shape[1], masked_v_displ_maps.shape[0], masked_v_displ_maps.shape[2], gdal.GDT_Float32,
@@ -477,7 +478,6 @@ if __name__ == "__main__":
     target_ds.SetProjection(proj)
     for i in range(masked_v_displ_maps.shape[2]):
         masked_v_displ_maps[:,:,i][coh_maps[:,:,i]<0.6] = np.nan
-        # masked_v_displ_maps[:,:,i][negl_risk_mask] = np.nan
         target_ds.GetRasterBand(i+1).WriteArray(masked_v_displ_maps[:,:,i])
     target_ds = None
     gc.collect()
@@ -500,7 +500,6 @@ if __name__ == "__main__":
     target_ds.SetProjection(proj)
     for i in range(masked_ew_displ_maps.shape[2]):
         masked_ew_displ_maps[:,:,i][coh_maps[:,:,i]<0.6] = np.nan
-        # masked_ew_displ_maps[:,:,i][negl_risk_mask] = np.nan
         target_ds.GetRasterBand(i+1).WriteArray(masked_ew_displ_maps[:,:,i])
     target_ds = None
     gc.collect()
