@@ -1,4 +1,4 @@
-# rs-landslide-monitoring
+# RS-Landslide-Monitoring
 
 This project implements a pipeline for Landslides detection to detect and monitor ground deformation associated with landslides using Sentinel-1 Level-2A imagery. It processes raw .SAFE or .zip Sentinel-1 inputs, extracts NDVI and BSI indices, interpolates them to a monthly time series, applies BFAST (Breaks For Additive Season and Trend), and outputs change detection and probability maps.
 
