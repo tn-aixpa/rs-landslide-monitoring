@@ -1,0 +1,76 @@
+ai: Remote Sensing
+domain: PA
+usages: ./docs/usage.md
+metadata:
+  name: rs-landslide-monitoring
+  description: >
+    A model to detect landslides in remote sensing images using deep learning techniques.
+  kind: product-template
+  ai: Remote Sensing
+  domain: PA
+  license: Apache License 2.0
+usage:
+  target_users:
+    - PA operators (municipalities, regional operators, etc.)
+  documentation_links:
+    - usage: ./docs/usage.md
+howto:
+  - title: Download the deforestation
+    ref: ./docs/howto/download.md
+  - title: Elaborate the deforestation data
+    ref: ./docs/howto/elaborate.md
+datasets:
+  - id: bosco
+    name: Bosco Dataset
+    kind: artifact
+  - id: sentinel-2
+    name: Sentinel-2 Dataset
+    kind: artifact
+operations:
+  - id: download_images_s2
+    name: Download the deforestation data
+    kind: job
+    task: download
+    implementation:
+      framework: aixpa
+      spec:
+        kind: container
+        image: ghcr.io/tn-aixpa/sentinel-tools:0.11.1_dev
+    inputs:
+      - parameters:
+          - name: start_date
+            type: string
+            description: Start date for the data download in YYYY-MM-DD format.
+          - name: end_date
+            type: string
+            description: End date for the data download in YYYY-MM-DD format.
+          - name: geometry
+            type: string
+            description: Region to download the data for.
+    outputs:
+      - sentinel-2:
+          name: data_s2_deforestation
+          kind: artifact
+          description: The downloaded Sentinel-2 images.
+  - id: elaborate_images_s2
+    name: Elaborate the deforestation data
+    kind: job
+    task: elaborate
+    implementation:
+      framework: aixpa
+      spec:
+        kind: container
+        image: ghcr.io/tn-aixpa/rs-deforestation:2.6_b9
+    inputs:
+      - parameters:
+          - name: data_s2_deforestation
+            type: artifact
+            description: The downloaded Sentinel-2 images.
+          - name: data_bosco
+            type: artifact
+            description: The Bosco dataset for training.
+    outputs:
+      - tiff:
+          name: elaborated_data
+          kind: artifact
+          description: The elaborated Sentinel-2 images in TIFF format.
