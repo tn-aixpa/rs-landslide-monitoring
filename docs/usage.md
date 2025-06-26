@@ -6,7 +6,7 @@ The main purpose of the tool is to provide perform the landslide-detection elabo
 
 ## Input
 
-- **Sentinel-2 Data** of ascending and desceding order in `.SAFE` folders or `.zip` format using specific relative orbits.
+- **Sentinel-1 Data** of ascending and desceding order in `.SAFE` folders or `.zip` format using specific relative orbits.
 - **Shape Mask** in `.shp` or raster format.
   - Can be downloaded from the [WebGIS Portal](https://webgis.provincia.tn.it/) from https://siatservices.provincia.tn.it/idt/vector/p_TN_377793f1-1094-4e81-810e-403897418b23.zip.
 
