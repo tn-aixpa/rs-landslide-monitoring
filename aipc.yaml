@@ -15,27 +15,29 @@ usage:
   documentation_links:
     - usage: ./docs/usage.md
 howto:
-  - title: Download the deforestation
+  - title: Download the geological data
     ref: ./docs/howto/download.md
-  - title: Elaborate the deforestation data
+  - title: Elaborate the geological data
     ref: ./docs/howto/elaborate.md
 datasets:
-  - id: bosco
-    name: Bosco Dataset
+  - id: Shapes_TN
+    name: Shapes_TN
     kind: artifact
-  - id: sentinel-2
-    name: Sentinel-2 Dataset
+  - id: s1_asending
+    name: Sentinel-1 Ascending Dataset
     kind: artifact
+  - id: s1_descending
+    name: Sentinel-1 Descending Dataset
 operations:
-  - id: download_images_s2
-    name: Download the deforestation data
+  - id: download_images_s1
+    name: Download the Sentinel-1 images
     kind: job
     task: download
     implementation:
       framework: aixpa
       spec:
         kind: container
-        image: ghcr.io/tn-aixpa/sentinel-tools:0.11.1_dev
+        image: ghcr.io/tn-aixpa/sentinel-tools:0.11.5
     inputs:
       - parameters:
           - name: start_date
@@ -48,29 +50,51 @@ operations:
             type: string
             description: Region to download the data for.
     outputs:
-      - sentinel-2:
-          name: data_s2_deforestation
+      - sentinel-1:
+          name: s1_asending
           kind: artifact
-          description: The downloaded Sentinel-2 images.
-  - id: elaborate_images_s2
-    name: Elaborate the deforestation data
+          description: The downloaded Sentinel-1 ascending images.
+      - sentinel-1:
+          name: s1_descending
+          kind: artifact
+          description: The downloaded Sentinel-1 descending images.
+  - id: elaborate_images_s1
+    name: Elaborate the geological data
     kind: job
     task: elaborate
     implementation:
       framework: aixpa
       spec:
         kind: container
-        image: ghcr.io/tn-aixpa/rs-deforestation:2.6_b9
+        image: ghcr.io/tn-aixpa/rs-landslide-monitoring:2.7_b6
     inputs:
       - parameters:
-          - name: data_s2_deforestation
+          - name: start_date
+            type: string
+            description: Start date for the data elaboration in YYYY-MM-DD format.
+          - name: end_date
+            type: string
+            description: End date for the data elaboration in YYYY-MM-DD format.
+          - name: geometry
+            type: string
+            description: Region to elaborate the data for.
+          - name: geometry
+            type: string
+            description: Region to elaborate the data for.
+          - name: s1_asending
             type: artifact
-            description: The downloaded Sentinel-2 images.
-          - name: data_bosco
+            description: The Sentinel-1 ascending images to be elaborated.
+          - name: s1_descending
             type: artifact
-            description: The Bosco dataset for training.
+            description: The Sentinel-1 descending images to be elaborated.
+          - name: Shapes_Tn
+            type: artifact
+            description: The geological data in shapefile format.
+          - name: shapeFileName
+            type: string
+            description: The name of the shapefile to be used for elaboration.
     outputs:
       - tiff:
           name: elaborated_data
           kind: artifact
-          description: The elaborated Sentinel-2 images in TIFF format.
+          description: The elaborated Sentinel-1 images in TIFF format.

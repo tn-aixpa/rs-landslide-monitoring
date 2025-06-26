@@ -1,6 +1,16 @@
 # RS-Landslide-Monitoring
 
-This project implements a pipeline for Landslides detection to detect and monitor ground deformation associated with landslides using Sentinel-1 Level-2A imagery. It processes raw .SAFE or .zip Sentinel-1 inputs, extracts NDVI and BSI indices, interpolates them to a monthly time series, applies BFAST (Breaks For Additive Season and Trend), and outputs change detection and probability maps.
+This project implements a pipeline for Landslides detection to detect and monitor ground deformation associated with landslides using Sentinel-1 Level-2A imagery. Given an area of interest and starting and ending dates, the project pipeline downloads the Sentinel-1 SLC images for that period that include the area of interest and divides the images acquired in the ascending direction from those in the descending direction into two folders. The time gap between two images acquired in a given direction has to be six days to improve the coherence between the two images.
+
+The project pipeline computes, for both ascending and descending directions, the interferometry between couples of images acquired every six days and derives the total displacement, coherence map, and local incident angle. It derives the horizontal and vertical displacement components from these products and merges them to obtain their cumulative sum and the displacement between each couple of images. The coherence maps are averaged, and the results are used to filter out the areas with the lowest coherence.
+
+The project pipeline output GeoTiff Raster files containing:
+
+- Cumulative sum and temporal variation of the horizontal displacement ;
+- Cumulative sum and temporal variation of the vertical displacement;
+- Cumulative sum and temporal variation of the total displacement of ascending and descending Sentinel-1 images;
+- Mean and temporal variation of the coherence maps;
+- Mean and temporal variation of the coherence maps of ascending and descending Sentinel-1 image;
 
 #### AIxPA
 
@@ -8,18 +18,15 @@ This project implements a pipeline for Landslides detection to detect and monito
 - `ai`: remote sensing
 - `domain`: PA
 
-The context in which this project was developed: The project pipeline downloads the indices of area of interest (Trentino) from the sentinel-2 download tool. The Trentino region covers several S1 tiles: T32TQS, T32TPR, T32TPS, T32TQR. These tiles can also be overlapped. The software process each downloaded tile separately, clip them using python procedure to convert the downloaded data to input files and then process the clipped tiles for the deforestation.
-
 The product contains operations for
 
 - Download Sentinel-1 data using tile-specific metadata (containing only two years).
-- Perform elaboration
-  - Compute NDVI and BSI indices from RED, NIR, and SWIR1 bands.
-  - Apply cloud/shadow masks from precomputed binary mask files (MASK.npy).
-  - Interpolate data to generate a complete 24-month time series (12 months/year).
-  - Fuse features and reshape data into pixel-wise time series.
-  - Run BFAST to detect change points across time.
-  - Post-process change maps to remove isolated pixels and fill gaps.
+- Perform elaboration that includes
+  - Computation of interferometry for both ascending and descending directions of images.
+  - Computation of coherence map, local incident angle.
+  - Computation of comulative sum based on horizontal and vertical displacement components between each couple of  
+    images.
+  - Filteration of lowest coherence areas after average operation.
 - Log results as GeoTIFF raster files.
 
 ## Requirements
@@ -36,7 +43,7 @@ The pipelines takes several days to complete with 16 CPUs and 64GB Ram for 6 mon
 https://identity.dataspace.copernicus.eu/auth/realms/CDSE/login-actions/registration?client_id=cdse-public&tab_id=FIiRPJeoiX4
 ```
 
-- Shape file can be downloaded from the [WebGIS Portal](https://webgis.provincia.tn.it/) confine del bosco layer or from https://siatservices.provincia.tn.it/idt/vector/p_TN_377793f1-1094-4e81-810e-403897418b23.zip. More details in download [step](./docs/howto/download.md)
+- Shape file can be downloaded from the [WebGIS Portal](https://webgis.provincia.tn.it/) from https://siatservices.provincia.tn.it/idt/vector/p_TN_377793f1-1094-4e81-810e-403897418b23.zip. More details in download [step](./docs/howto/download.md)
 
 ## Usage
 
@@ -44,7 +51,7 @@ Tool usage documentation [here](./docs/usage.md).
 
 ## How To
 
-- [Download and preprocess sentinel forest data](./docs/howto/download.md)
+- [Download and preprocess sentinel geological data](./docs/howto/download.md)
 - [Run Elaboration and log output ](./docs/howto/elaborate.md)
 
 ## License
