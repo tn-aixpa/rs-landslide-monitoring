@@ -3,6 +3,7 @@
 *.pkl
 *.pyc
 output
+result
 bosco
 *.env
 data
