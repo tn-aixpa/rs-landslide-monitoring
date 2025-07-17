@@ -1,8 +1,8 @@
 # RS-Landslide-Monitoring
 
-This project implements a pipeline for Landslides detection to detect and monitor ground deformation associated with landslides using Sentinel-1 Level-2A imagery. Given an area of interest and starting and ending dates, the project pipeline downloads the Sentinel-1 SLC images for that period that include the area of interest and divides the images acquired in the ascending direction from those in the descending direction into two folders. The time gap between two images acquired in a given direction has to be six days to improve the coherence between the two images.
+<p align="justify">This project implements a pipeline for Landslides detection to detect and monitor ground deformation associated with landslides using Sentinel-1 Level-2A imagery. Given an area of interest and starting and ending dates, the project pipeline downloads the Sentinel-1 SLC images for that period that include the area of interest and divides the images acquired in the ascending direction from those in the descending direction into two folders. The time gap between two images acquired in a given direction has to be six days to improve the coherence between the two images.</p>
 
-The project pipeline computes, for both ascending and descending directions, the interferometry between couples of images acquired every six days and derives the total displacement, coherence map, and local incident angle. It derives the horizontal and vertical displacement components from these products and merges them to obtain their cumulative sum and the displacement between each couple of images. The coherence maps are averaged, and the results are used to filter out the areas with the lowest coherence.
+<p align="justify">The project pipeline computes, for both ascending and descending directions, the interferometry between couples of images acquired every six days and derives the total displacement, coherence map, and local incident angle. It derives the horizontal and vertical displacement components from these products and merges them to obtain their cumulative sum and the displacement between each couple of images. The coherence maps are averaged, and the results are used to filter out the areas with the lowest coherence.</p>
 
 The project pipeline output GeoTiff Raster files containing:
 
@@ -33,7 +33,7 @@ The product contains operations for
 
 ### Hardware Requirements
 
-The pipelines takes several days to complete with 16 CPUs and 64GB Ram for 6 months data which is the default period. It consists of two steps (download, elaboration). The download step is dependant on Sentinel Hub dataspace. It could happen that data download takes more time than usual due to various factors, including technical issues, data processing delays, and limitations in the data access infrastructure. The second step 'elaboration' consists of interferometry step which is a remote sensing technique that uses radar data to detect and monitor ground deformation associated with landslides and post processing steps which are computationally heavy since it is pixel based analysis.The amount of sentinal data is huge that is whay a volume of 600Gi of type 'persistent_volume_claim' is specified to ensure significant data space.
+<p align="justify">The pipelines takes several days to complete with 16 CPUs and 64GB Ram for 6 months data which is the default period. It consists of two steps (download, elaboration). The download step is dependant on Sentinel Hub dataspace. It could happen that data download takes more time than usual due to various factors, including technical issues, data processing delays, and limitations in the data access infrastructure. The second step 'elaboration' consists of interferometry step which is a remote sensing technique that uses radar data to detect and monitor ground deformation associated with landslides and post processing steps which are computationally heavy since it is pixel based analysis.The amount of sentinal data is huge that is whay a volume of 600Gi of type 'persistent_volume_claim' is specified to ensure significant data space.</p>
 
 ### General Requirements
 
@@ -43,7 +43,7 @@ The pipelines takes several days to complete with 16 CPUs and 64GB Ram for 6 mon
 https://identity.dataspace.copernicus.eu/auth/realms/CDSE/login-actions/registration?client_id=cdse-public&tab_id=FIiRPJeoiX4
 ```
 
-- Shape file can be downloaded from the [WebGIS Portal](https://webgis.provincia.tn.it/) from https://siatservices.provincia.tn.it/idt/vector/p_TN_377793f1-1094-4e81-810e-403897418b23.zip. More details in download [step](./docs/howto/download.md)
+- <p align="justify">Shape file can be downloaded from the <a href="https://webgis.provincia.tn.it/">WebGIS Portal</a> or using direct <a href="https://siatservices.provincia.tn.it/idt/vector/p_TN_377793f1-1094-4e81-810e-403897418b23.zip">link</a> to zip archive. More details in download <a href="./docs/howto/download.md">step</a></p>
 
 ## Usage
 
