@@ -117,8 +117,8 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     export = Operator("SnaphuExport",targetFolder=unwrap_folder)
     export.initMethod = 'MCF'
     export.statCostMode = 'DEFO'
-    export.numberOfTileRows = 10
-    export.numberOfTileCols = 10
+    export.numberOfTileRows = 15
+    export.numberOfTileCols = 5
     g3.add_node(export, node_id='export',source="read")
     g3.run()
     
@@ -145,8 +145,8 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     conncomp = snaphu.io.Raster.create(os.path.join(unwrap_folder,wrapped_folder,"conncomp.tif"),
                                        width = igram.shape[1], height = igram.shape[0], dtype="u4")
 
-    snaphu.unwrap(igram, coh, nlooks=23.8, cost="defo", ntiles=(10,10), init='mcf',
-                  tile_overlap=(200,200), nproc=4, min_region_size=200, single_tile_reoptimize=False,
+    snaphu.unwrap(igram, coh, nlooks=50, cost="defo", ntiles=(15,5), init='mcf',#23.8
+                  tile_overlap=(200,200), nproc=16, min_region_size=200, single_tile_reoptimize=False,
                   regrow_conncomps=False,mask=mask,unw=unw, conncomp=conncomp)
     
     g4 = Graph()
@@ -224,14 +224,14 @@ def v_ew_displ(path :str,list_filenames: list) -> np.float32:
         filename_iw1 = [os.path.join(asc_file_path,"IW1",fi) for fi in os.listdir(os.path.join(asc_file_path,"IW1")) if ".tif" in fi][0]
         filename_iw2 = [os.path.join(asc_file_path,"IW2",fi) for fi in os.listdir(os.path.join(asc_file_path,"IW2")) if ".tif" in fi][0]
         list_files = " ".join([filename_iw1,filename_iw2])
-        subprocess.check_output("python gdal_merge.py -o "+os.path.join(asc_file_path,"m.tif")+" -n 0.0 -ot Float32 -of GTiff "+list_files, shell=True)
+        subprocess.check_output("python merge.py -o "+os.path.join(asc_file_path,"m.tif")+" -n 0.0 -ot Float32 -of GTiff "+list_files, shell=True)
         gdal.Warp(os.path.join(asc_file_path,"mosaic.tif"),os.path.join(asc_file_path,"m.tif"),format='GTiff',
                   dstSRS='EPSG:25832', cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True)
         os.remove(os.path.join(asc_file_path,"m.tif"))
         filename_iw1 = [os.path.join(desc_file_path,"IW1",fi) for fi in os.listdir(os.path.join(desc_file_path,"IW1")) if ".tif" in fi][0]
         filename_iw2 = [os.path.join(desc_file_path,"IW2",fi) for fi in os.listdir(os.path.join(desc_file_path,"IW2")) if ".tif" in fi][0]
         list_files = " ".join([filename_iw1,filename_iw2])
-        subprocess.check_output("python gdal_merge.py -o "+os.path.join(desc_file_path,"m.tif")+" -n 0.0 -ot Float32 -of GTiff "+list_files, shell=True)
+        subprocess.check_output("python merge.py -o "+os.path.join(desc_file_path,"m.tif")+" -n 0.0 -ot Float32 -of GTiff "+list_files, shell=True)
         gdal.Warp(os.path.join(desc_file_path,"mosaic.tif"),os.path.join(desc_file_path,"m.tif"),format='GTiff',
                   dstSRS='EPSG:25832', cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True)
         os.remove(os.path.join(desc_file_path,"m.tif"))
