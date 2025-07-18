@@ -15,6 +15,8 @@ from osgeo import gdal
 gdal.UseExceptions()
 from shapely.wkt import loads
 import geopandas as gpd
+import subprocess
+import zipfile
 
 tempfile.tempdir
 
@@ -57,13 +59,13 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     tops_split1 = Operator("TOPSAR-Split")
     tops_split1.subswath = iw
     tops_split1.selectedPolarisations = "VV"
-    tops_split1.firstBurstIndex = 3
-    tops_split1.lastBurstIndex = 5
+    tops_split1.firstBurstIndex = 1
+    tops_split1.lastBurstIndex = 9
     tops_split2 = Operator("TOPSAR-Split")
     tops_split2.subswath = iw
     tops_split2.selectedPolarisations = "VV"
-    tops_split2.firstBurstIndex = 3
-    tops_split2.lastBurstIndex = 5
+    tops_split2.firstBurstIndex = 1
+    tops_split2.lastBurstIndex = 9
     g1.add_node(tops_split1,node_id="TOPS-SPLIT1",source="read1")
     g1.add_node(tops_split2, node_id="TOPS-SPLIT2",source="read2")
     
@@ -115,8 +117,8 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     export = Operator("SnaphuExport",targetFolder=unwrap_folder)
     export.initMethod = 'MCF'
     export.statCostMode = 'DEFO'
-    export.numberOfTileRows = 10
-    export.numberOfTileCols = 10
+    export.numberOfTileRows = 15
+    export.numberOfTileCols = 5
     g3.add_node(export, node_id='export',source="read")
     g3.run()
     
@@ -143,8 +145,8 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     conncomp = snaphu.io.Raster.create(os.path.join(unwrap_folder,wrapped_folder,"conncomp.tif"),
                                        width = igram.shape[1], height = igram.shape[0], dtype="u4")
 
-    snaphu.unwrap(igram, coh, nlooks=23.8, cost="defo", ntiles=(10,10), init='mcf',
-                  tile_overlap=(200,200), nproc=4, min_region_size=200, single_tile_reoptimize=False,
+    snaphu.unwrap(igram, coh, nlooks=50, cost="defo", ntiles=(15,5), init='mcf',#23.8
+                  tile_overlap=(200,200), nproc=16, min_region_size=200, single_tile_reoptimize=False,
                   regrow_conncomps=False,mask=mask,unw=unw, conncomp=conncomp)
     
     g4 = Graph()
@@ -221,21 +223,21 @@ def v_ew_displ(path :str,list_filenames: list) -> np.float32:
         desc_file_path = os.path.join(file_path,"descending")
         filename_iw1 = [os.path.join(asc_file_path,"IW1",fi) for fi in os.listdir(os.path.join(asc_file_path,"IW1")) if ".tif" in fi][0]
         filename_iw2 = [os.path.join(asc_file_path,"IW2",fi) for fi in os.listdir(os.path.join(asc_file_path,"IW2")) if ".tif" in fi][0]
-        gdal.Warp(filename_iw1[:-4]+"_m.tif",[filename_iw1,filename_iw2],format='GTiff',
-                  options=['COMPRESS=DEFLATE','BIGTIFF=YES','TILED=YES'])
-        gdal.Warp(filename_iw1[:-4]+"_mosaic.tif",filename_iw1[:-4]+"_m.tif",format='GTiff',
-                  cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True,
-                  options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
-        os.remove(filename_iw1[:-4]+"_m.tif")
+        list_files = " ".join([filename_iw1,filename_iw2])
+        subprocess.check_output("python merge.py -o "+os.path.join(asc_file_path,"m.tif")+" -n 0.0 -ot Float32 -of GTiff "+list_files, shell=True)
+        gdal.Warp(os.path.join(asc_file_path,"mosaic.tif"),os.path.join(asc_file_path,"m.tif"),format='GTiff',
+                  dstSRS='EPSG:25832', cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True)
+        os.remove(os.path.join(asc_file_path,"m.tif"))
         filename_iw1 = [os.path.join(desc_file_path,"IW1",fi) for fi in os.listdir(os.path.join(desc_file_path,"IW1")) if ".tif" in fi][0]
         filename_iw2 = [os.path.join(desc_file_path,"IW2",fi) for fi in os.listdir(os.path.join(desc_file_path,"IW2")) if ".tif" in fi][0]
-        gdal.Warp(filename_iw1[:-4]+"_m.tif",[filename_iw1,filename_iw2],format='GTiff',
-                  options=['COMPRESS=DEFLATE','BIGTIFF=YES','TILED=YES'])
-        gdal.Warp(filename_iw1[:-4]+"_mosaic.tif",filename_iw1[:-4]+"_m.tif",format='GTiff',
-                  cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True,
-                  options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
-        os.remove(filename_iw1[:-4]+"_m.tif")
+        list_files = " ".join([filename_iw1,filename_iw2])
+        subprocess.check_output("python merge.py -o "+os.path.join(desc_file_path,"m.tif")+" -n 0.0 -ot Float32 -of GTiff "+list_files, shell=True)
+        gdal.Warp(os.path.join(desc_file_path,"mosaic.tif"),os.path.join(desc_file_path,"m.tif"),format='GTiff',
+                  dstSRS='EPSG:25832', cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True)
+        os.remove(os.path.join(desc_file_path,"m.tif"))
+        #end of the part that we can process without request
 
+        #the following part can be on demand
         #clipping for ascending images
         filename_ascending = [fi for fi in os.listdir(asc_file_path) if ".tif" in fi][0]
         output_filename_ascending = filename_ascending[:-4]+"_clip.tif"
@@ -295,7 +297,7 @@ def v_ew_displ(path :str,list_filenames: list) -> np.float32:
     return v_displ_time_series, ew_displ_time_series, coh_time_series, asc_time_series, desc_time_series, coh_asc_time_series, coh_desc_time_series, proj, geoT
 
 
-# python main.py "{'s1_ascending':'s1_ascending', 's1_descending': 's1_descending', 'start':'2021-03-01', 'end':'2021-03-30','outputArtifactName': 'landslide_output'}"
+# python main.py "{'s1_ascending':'s1_ascending', 's1_descending': 's1_descending', 'startDate':'2021-03-01', 'endDate':'2021-03-30','outputArtifactName': 'landslide_output', 'shapeArtifactName': 'trentino_boundary', 'shapeFileName': 'ammprv_v.shp', 'geomWKT': 'POLYGON ((11.687737 46.134408, 11.773911 46.134408, 11.773911 46.174363, 11.687737 46.174363, 11.687737 46.134408))'}"
 
 if __name__ == "__main__":
 
@@ -306,7 +308,7 @@ if __name__ == "__main__":
     maindir = '.'
     data_folder = 'data'
     temp_folder = 'tmp'
-    output_folder = 'output'
+    result_folder = 'result'
     phase_wrapping_folder = 'phase_unwrapping'
 
     # read input parameters
@@ -323,9 +325,9 @@ if __name__ == "__main__":
     
     # define paths
     data_path = os.path.join(maindir, data_folder)
+    result_path = os.path.join(maindir, result_folder)
     data_ascending_folder = os.path.join(data_path, 'ascending')
     data_descending_folder = os.path.join(data_path, 'descending')
-    output_path = os.path.join(data_path, output_folder)
     tempfile.tempdir = os.path.join(data_path, temp_folder)
     unwrap_folder = os.path.join(tempfile.tempdir, phase_wrapping_folder)
     trentino_boundary_folder = os.path.join(data_path, 'shape')
@@ -338,12 +340,12 @@ if __name__ == "__main__":
         os.makedirs(data_ascending_folder)   
     if not os.path.exists(data_descending_folder):
         os.makedirs(data_descending_folder)
-    # create output directory
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
     # create temp directory
     if (not os.path.exists(tempfile.tempdir)):
         os.makedirs(tempfile.tempdir)
+    # create result folder
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
 
     print(f"Input parameters: s1_ascending={s1_a}, s1_descending={s1_d}, startDate={startDate}, endDate={endDate}, output_artifact_name={output_artifact_name}")
     # download data
@@ -367,7 +369,6 @@ if __name__ == "__main__":
     print(f"input_path_descending = {data_descending_folder}")
     print(f"tempfile.tempdir = {tempfile.tempdir}")
     print(f"unwrap_folder = {unwrap_folder}")
-    print(f"output_path = {output_path}")
     print(f"trentino_boundary_path = {trentino_boundary_path}")
     
     # Step 1. // To calculate the interferometric data between the ascending and descending images
@@ -393,8 +394,11 @@ if __name__ == "__main__":
         filename_descending2 = list_files_descending[sorted_indeces_descending[i]]
         output_path = "{}-{}".format(list_dates_descending[sorted_indeces_descending[i-1]],
                                      list_dates_ascending[sorted_indeces_ascending[i]])
-        output_path_ascending = os.path.join(maindir, data_path, "{}/ascending/".format(output_path))
-        output_path_descending = os.path.join(maindir, data_path, "{}/descending/".format(output_path))
+        output_path_ascending = os.path.join(maindir, result_path, "{}/ascending/".format(output_path))
+        output_path_descending = os.path.join(maindir, result_path, "{}/descending/".format(output_path))
+        output_path_folder = os.path.join(maindir, result_path, output_path)
+    
+        print(f"output_path = {output_path}")
         print(f"output_path_ascending = {output_path_ascending}")
         print(f"output_path_descending = {output_path_descending}")
         if not os.path.isdir(output_path_ascending):
@@ -411,15 +415,20 @@ if __name__ == "__main__":
                        output_path_ascending,subswath='IW1')
         interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
                        output_path_ascending,subswath='IW2')
+
+    # Upload the result artifact
+    # print(f"Uploading Interferometric results to DigitalHub artifact: {output_artifact_name}")
+    # upload_artifact(artifact_name='interferometry',project_name=project_name,src_path=[output_path_ascending, output_path_descending],)
     
     # Step 2. // To calculate the vertical and east-west displacements from the interferometric data
     # The vertical and east-west displacements are calculated from the interferometric data,
     # and the results are stored in the output_path directory.
     print("Step 2: Calculating vertical and east-west displacements...")
-    list_filenames = [f for f in os.listdir(output_path) if os.path.isdir(os.path.join(output_path, f))] # which list is this??
-    
+    list_filenames = [f for f in os.listdir(result_path) if os.path.isdir(os.path.join(result_path, f))] # which list is this??
+
+    print(f"Found {len(list_filenames)} subdirectories in {result_path}")
     #calculate the vertical and east-west displacements
-    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT = v_ew_displ(output_path, list_filenames)
+    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT = v_ew_displ(result_path, list_filenames)
     #keep only the interferometry maps with a mean coherence value higher than 0.3
     mean_coh = np.average(coh_maps,axis=(0,1))
     n_time = ew_displ_maps.shape[2]
@@ -471,7 +480,7 @@ if __name__ == "__main__":
     masked_cum_sum_desc[avg_coh_desc<0.4] = np.nan
     
     #save the stacked masked vertical displacement maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_verticale.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_verticale.tif'), 
                                     masked_v_displ_maps.shape[1], masked_v_displ_maps.shape[0], masked_v_displ_maps.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -483,7 +492,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the masked cumulative vertical displacement maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'somma_cumulata_scostamento_verticale.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_verticale.tif'), 
                                     masked_cum_sum_v_displ_map.shape[1], masked_cum_sum_v_displ_map.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -493,7 +502,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked masked east-west displacement maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_orizzontale.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_orizzontale.tif'), 
                                     masked_ew_displ_maps.shape[1], masked_ew_displ_maps.shape[0], masked_ew_displ_maps.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -505,7 +514,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the masked cumulative east-west displacement map
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'somma_cumulata_scostamento_orizzontale.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_orizzontale.tif'), 
                                     masked_cum_sum_ew_displ_map.shape[1], masked_cum_sum_ew_displ_map.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -515,7 +524,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked masked total displacement maps ascending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_totale_ascendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_totale_ascendente.tif'), 
                                     asc.shape[1], asc.shape[0], asc.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -527,7 +536,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the masked cumulative total displacement map ascending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'somma_cumulata_scostamento_totale_ascendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_totale_ascendente.tif'), 
                                     masked_cum_sum_asc.shape[1], masked_cum_sum_asc.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -537,7 +546,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked masked total displacement maps descending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_scostamento_totale_discendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_totale_discendente.tif'), 
                                     desc.shape[1], desc.shape[0], desc.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -549,7 +558,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the masked cumulative total displacement map ascending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'somma_cumulata_scostamento_totale_discendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_totale_discendente.tif'), 
                                     masked_cum_sum_desc.shape[1], masked_cum_sum_desc.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -559,7 +568,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the average coherence map
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'mappa_coerenza_media.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media.tif'), 
                                     avg_coh_map.shape[1], avg_coh_map.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -569,7 +578,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked coherence maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_mappe_coerenza.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza.tif'), 
                                     avg_coh_map.shape[1], avg_coh_map.shape[0], coh_maps.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -580,7 +589,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the average coherence map ascending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'mappa_coerenza_media_ascendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media_ascendente.tif'), 
                                     avg_coh_asc.shape[1], avg_coh_asc.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -590,7 +599,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked coherence maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_mappe_coerenza_ascendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza_ascendente.tif'), 
                                     coh_asc.shape[1], coh_asc.shape[0], coh_asc.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -601,7 +610,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the average coherence map descending
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'mappa_coerenza_media_dscendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media_dscendente.tif'), 
                                     avg_coh_desc.shape[1], avg_coh_desc.shape[0], 1, gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -611,7 +620,7 @@ if __name__ == "__main__":
     gc.collect()
     
     #save the stacked coherence maps
-    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,'serie_temporale_mappe_coerenza_discendente.tif'), 
+    target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza_discendente.tif'), 
                                     coh_desc.shape[1], coh_desc.shape[0], coh_desc.shape[2], gdal.GDT_Float32,
                                     options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
     target_ds.SetGeoTransform(geoT)
@@ -621,7 +630,19 @@ if __name__ == "__main__":
     target_ds = None
     gc.collect()
         
-    # Remove the unnecessary files    
     #upload output artifact
-    print(f"Upoading artifact: {output_artifact_name}, {output_artifact_name}")
-    upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=output_path)
+    print(f"Uploading artifact: {output_artifact_name}, {output_artifact_name}")
+    zip_file = os.path.join(result_path, output_artifact_name + '.zip')
+    print(f"Creating zip file: {zip_file}")
+    zf = zipfile.ZipFile(zip_file, "w")
+    for dirname, subdirs, files in os.walk(result_path):
+        if (dirname != "./result"):
+            continue
+        print(f"Processing directory: {dirname}")
+        for filename in files:
+            if(filename.endswith('.tif') or filename.endswith('.tiff')):
+                print(f"Adding {filename} to the zip file")
+                zf.write(os.path.join(dirname, filename), arcname=filename)
+    zf.close()
+    
+    upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=zip_file)
