@@ -418,7 +418,7 @@ if __name__ == "__main__":
 
     # Upload the result artifact
     # print(f"Uploading Interferometric results to DigitalHub artifact: {output_artifact_name}")
-    # upload_artifact(artifact_name='interferometry',project_name=project_name,src_path=[output_path_ascending, output_path_descending],)
+    # upload_artifact(artifact_name='interferometry',project_name=project_name,src_path=[output_path_folder])
     
     # Step 2. // To calculate the vertical and east-west displacements from the interferometric data
     # The vertical and east-west displacements are calculated from the interferometric data,
