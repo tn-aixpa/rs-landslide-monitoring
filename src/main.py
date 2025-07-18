@@ -416,6 +416,10 @@ if __name__ == "__main__":
         interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
                        output_path_ascending,subswath='IW2')
 
+    # Upload the result artifact
+    # print(f"Uploading Interferometric results to DigitalHub artifact: {output_artifact_name}")
+    # upload_artifact(artifact_name='interferometry',project_name=project_name,src_path=[output_path_ascending, output_path_descending],)
+    
     # Step 2. // To calculate the vertical and east-west displacements from the interferometric data
     # The vertical and east-west displacements are calculated from the interferometric data,
     # and the results are stored in the output_path directory.
