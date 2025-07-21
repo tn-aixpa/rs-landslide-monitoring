@@ -308,7 +308,8 @@ if __name__ == "__main__":
     maindir = '.'
     data_folder = 'data'
     temp_folder = 'tmp'
-    result_folder = 'result'
+    output_folder = 'output'
+    input_folder = 'input'
     phase_wrapping_folder = 'phase_unwrapping'
 
     # read input parameters
@@ -324,8 +325,8 @@ if __name__ == "__main__":
     project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
     
     # define paths
-    data_path = os.path.join(maindir, data_folder)
-    result_path = os.path.join(maindir, result_folder)
+    data_path = os.path.join(maindir, data_folder, input_folder)
+    result_path = os.path.join(maindir, data_folder, output_folder)
     data_ascending_folder = os.path.join(data_path, 'ascending')
     data_descending_folder = os.path.join(data_path, 'descending')
     tempfile.tempdir = os.path.join(data_path, temp_folder)
@@ -417,8 +418,8 @@ if __name__ == "__main__":
                        output_path_ascending,subswath='IW2')
 
     # Upload the result artifact
-    # print(f"Uploading Interferometric results to DigitalHub artifact")
-    # upload_artifact(artifact_name='interferometry',project_name=project_name,src_path=[output_path_folder])
+    print(f"Uploading Interferometric results to DigitalHub artifact")
+    upload_artifact(artifact_name='interferometry',project_name=project_name,src_path=output_path_folder)
     
     # Step 2. // To calculate the vertical and east-west displacements from the interferometric data
     # The vertical and east-west displacements are calculated from the interferometric data,
@@ -636,7 +637,7 @@ if __name__ == "__main__":
     print(f"Creating zip file: {zip_file}")
     zf = zipfile.ZipFile(zip_file, "w")
     for dirname, subdirs, files in os.walk(result_path):
-        if (dirname != "./result"):
+        if (dirname != "./output"):
             continue
         print(f"Processing directory: {dirname}")
         for filename in files:
