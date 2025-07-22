@@ -4,6 +4,7 @@ RUN conda init bash && . ~/.bashrc
 WORKDIR /app
 COPY main.py .
 COPY requirements.txt .
+COPY merge.py .
 RUN mkdir /app/utils
 COPY utils /app/utils
 RUN mkdir /app/data
