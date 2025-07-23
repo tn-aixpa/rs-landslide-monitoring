@@ -53,6 +53,7 @@ Tool usage documentation [here](./docs/usage.md).
 
 - [Download and preprocess sentinel geological data](./docs/howto/download.md)
 - [Run Elaboration and log output ](./docs/howto/elaborate.md)
+- [Workflow](./docs/howto/workflow.md)
 
 ## License
 
