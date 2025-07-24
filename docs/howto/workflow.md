@@ -77,10 +77,10 @@ function_rs = proj.new_function(
 
 Workflows can be created and managed as entities similar to functions. From the console UI one can access them from the dashboard or the left menu. Run the following step to create 'workflow' python source file inside src directory. The workflow handler takes as input
 
-- geometry (area of interest)
+- geometry (area of interest for e.g. POLYGON ((11.687737 46.134408, 11.773911 46.134408, 11.773911 46.174363, 11.687737 46.174363, 11.687737 46.134408)))
 - outputName (output artifact name)
-- startDate
-- endDate
+- startDate (Start date for the data elaboration in YYYY-MM-DD format)
+- endDate (End date for the data elaboration in YYYY-MM-DD format)
 
 <p align="justify">The inputs are sub organized inside to the workflow among different functions. The first four download steps perform sentinel downloads using the function created in previous step. The download function takes as input a list of arguments (args=["main.py", string_dict_data_s1Pre]) where the first argument is the python script file that will be launched inside to the container and the second argument is the json input string which includes all the necessary parameters of sentinel download operation like date, geometry, product type, cloud cover etc. For more details click <a href="https://github.com/tn-aixpa/sentinel-tools/">here</a>. The last step of workflow perform elaboration using the 'elaborate' function created in previous step. The elaboration function taks as input a list of arguments where the first argument is the bash script that will be launched on entry inside to the container while the following parameters contains both fixed and dynamic parameters. The fixed parameter includes both the project artifacts names (s1_ascending, s1_descending, 'Shapes_TN', 'ammprv_v.shp'). The workflow can be adopted as per context needs by changing/passing the different parametric values as depicted in 'Register workflow' section.</p>
 

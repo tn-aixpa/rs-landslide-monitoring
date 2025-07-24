@@ -28,7 +28,7 @@ run_el = function_rs.run(
         "mount_path": "/app/files",
         "spec": { "size": "600Gi" }
     }],
-    args=['/shared/launch.sh', 's1_ascending', 's1_descending', '2021-03-01', '2021-07-30', 'landslide_2021-03-04_2021-07-30', 'Shapes_TN', 'ammprv_v.shp','POLYGON((10.81295 45.895743, 10.813637 45.895743, 10.813637 45.89634, 10.81295 45.89634, 10.81295 45.895743))']
+    args=['/shared/launch.sh', 's1_ascending', 's1_descending', '2021-03-01', '2021-07-30', 'landslide_2021-03-04_2021-07-30', 'Shapes_TN', 'ammprv_v.shp','POLYGON ((11.687737 46.134408, 11.773911 46.134408, 11.773911 46.174363, 11.687737 46.174363, 11.687737 46.134408))']
 )
 ```
 
