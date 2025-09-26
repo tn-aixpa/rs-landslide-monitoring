@@ -29,10 +29,10 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     output_path = os.path.join(output_path,subswath)
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
-#    if os.path.isdir(unwrap_folder):
-#        shutil.rmtree(unwrap_folder)
-#    if not os.path.isdir(unwrap_folder):
-#        os.makedirs(unwrap_folder)
+    if os.path.isdir(unwrap_folder):
+       shutil.rmtree(unwrap_folder)
+    if not os.path.isdir(unwrap_folder):
+       os.makedirs(unwrap_folder)
     if len(os.listdir(unwrap_folder))>0:
         for f in os.listdir(unwrap_folder):
             file_path = os.path.join(unwrap_folder,f)
