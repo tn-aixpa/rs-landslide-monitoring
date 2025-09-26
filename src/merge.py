@@ -120,7 +120,7 @@ class info_file:
         t_lry = t_geoT[3] + fh_t.RasterYSize * t_geoT[5]
 
         tw_ulx = max(t_ulx,self.ulx)
-        tw_ulx = min(t_lrx,self.lrx)
+        tw_lrx = min(t_lrx,self.lrx)
         if t_geoT[5] < 0:
             tw_uly = min(t_uly,self.uly)
             tw_lry = max(t_lry,self.lry)
@@ -128,7 +128,7 @@ class info_file:
             tw_uly = max(t_uly,self.uly)
             tw_lry = min(t_lry,self.lry)
 
-        if tw_ulx >= tw_ulx:
+        if tw_ulx >= tw_lrx:
             return 1
         if t_geoT[5] < 0 and tw_uly <= tw_lry:
             return 1
@@ -137,7 +137,7 @@ class info_file:
 
         tw_xoff = int((tw_ulx - t_geoT[0]) / t_geoT[1] + 0.1)
         tw_yoff = int((tw_uly - t_geoT[3]) / t_geoT[5] + 0.1)
-        tw_xsize = int((tw_ulx - t_geoT[0])/t_geoT[1] + 0.5) \
+        tw_xsize = int((tw_lrx - t_geoT[0])/t_geoT[1] + 0.5) \
                    - tw_xoff
         tw_ysize = int((tw_lry - t_geoT[3])/t_geoT[5] + 0.5) \
                    - tw_yoff
@@ -147,7 +147,7 @@ class info_file:
 
         sw_xoff = int((tw_ulx - self.geoT[0]) / self.geoT[1])
         sw_yoff = int((tw_uly - self.geoT[3]) / self.geoT[5])
-        sw_xsize = int((tw_ulx - self.geoT[0]) \
+        sw_xsize = int((tw_lrx - self.geoT[0]) \
                        / self.geoT[1] + 0.5) - sw_xoff
         sw_ysize = int((tw_lry - self.geoT[3]) \
                        / self.geoT[5] + 0.5) - sw_yoff
