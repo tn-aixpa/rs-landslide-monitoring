@@ -17,7 +17,7 @@ from shapely.wkt import loads
 import geopandas as gpd
 import subprocess
 import zipfile
-from skimage.restoration import unwrap_phase
+#from skimage.restoration import unwrap_phase
 import xml.etree.ElementTree as ET
 from PIL import Image
 
