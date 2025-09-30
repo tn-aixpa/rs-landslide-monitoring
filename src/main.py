@@ -20,6 +20,7 @@ import zipfile
 #from skimage.restoration import unwrap_phase
 import xml.etree.ElementTree as ET
 from PIL import Image
+import warnings
 
 tempfile.tempdir
 
@@ -479,7 +480,12 @@ if __name__ == "__main__":
     list_alpha_ascending = []
     list_theta_descending = []
     list_alpha_descending = []
-    for i in range(1,len(sorted_indeces_descending),1):
+    if len(list_files_ascending) != len(list_files_descending) and abs(len(list_files_ascending) - len(list_files_descending)) < 2:
+        warnings.warn("The number of ascending and descending images is different. The minimum number of images will be used.")
+    elif abs(len(list_files_ascending) - len(list_files_descending)) >= 2:
+        warnings.warn("The number of images in the ascending and descending image time series is very different. This could badly affect the interferometry. Please check the input data.")
+    n_images = min(len(list_files_ascending),len(list_files_descending))
+    for i in range(1,n_images,1):
         filename_ascending1 = list_files_ascending[sorted_indeces_ascending[i-1]]
         filename_ascending2 = list_files_ascending[sorted_indeces_ascending[i]]
         filename_descending1 = list_files_descending[sorted_indeces_descending[i-1]]
