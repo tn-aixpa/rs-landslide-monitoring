@@ -424,7 +424,7 @@ if __name__ == "__main__":
     if not os.path.exists(input_map_folder):
         os.makedirs(input_map_folder)
 
-    print(f"Input parameters: s1_ascending={s1_a}, s1_descending={s1_d}, startDate={startDate}, endDate={endDate}, output_artifact_name={output_artifact_name}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}, mapArtifact={mapArtifact}}, geo_wkt={geo_wkt}")
+    print(f"Input parameters: s1_ascending={s1_a}, s1_descending={s1_d}, startDate={startDate}, endDate={endDate}, output_artifact_name={output_artifact_name}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}, mapArtifact={mapArtifact}, geo_wkt={geo_wkt}")
     # download data
     project = dh.get_or_create_project(project_name)
     print(f"Downloading artifacts for project: {project_name}")
