@@ -604,13 +604,15 @@ if __name__ == "__main__":
     bounds = aoi.total_bounds
     window = (bounds[0], bounds[3], bounds[2], bounds[1])
     ds_trans = gdal.Translate(trentino_slope_map_path[:-4]+'_clip.tif', 
-                                trentino_slope_map_path, projWin = window,
-                                projWinSRS = "EPSG:25832")
+                                trentino_slope_map_path, width = inc_angle_asc[:,:,0].shape[1],
+                                height = inc_angle_asc[:,:,0].shape[0], resampleAlg = 'bilinear',
+                                projWin = window, projWinSRS = "EPSG:25832")
     slope_map = ds_trans.GetRasterBand(1).ReadAsArray()
     ds_trans = None
     ds_trans = gdal.Translate(trentino_aspect_map_path[:-4]+'_clip.tif', 
-                                trentino_aspect_map_path, projWin = window,
-                                projWinSRS = "EPSG:25832")
+                                trentino_aspect_map_path, width = inc_angle_asc[:,:,0].shape[1],
+                                height = inc_angle_asc[:,:,0].shape[0], resampleAlg = 'bilinear',
+                                projWin = window, projWinSRS = "EPSG:25832")
     aspect_map = ds_trans.GetRasterBand(1).ReadAsArray()
     ds_trans = None
     #compute the c coefficient in ascending and descending
