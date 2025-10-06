@@ -177,7 +177,7 @@ workflow_run = workflow.run(action="pipeline", parameters={
     })
 ```
 
-See the complete jypter notebook <a href="./src/workflow.ipynb">here</a>. After the build, the pipeline specification and configuration is displayed as the result of this step(wfbuild.spec). The same can be achieved from the console UI dashboard or the left menu using the 'INSPECTOR' button which opens a dialog containing the resource in JSON format.
+See the complete jypter notebook <a href="../../src/workflow.ipynb">here</a>. After the build, the pipeline specification and configuration is displayed as the result of this step(wfbuild.spec). The same can be achieved from the console UI dashboard or the left menu using the 'INSPECTOR' button which opens a dialog containing the resource in JSON format.
 
 ```python
 {
