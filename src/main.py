@@ -848,9 +848,12 @@ for dirname, subdirs, files in os.walk(result_path):
     #     continue
     print(f"Processing directory: {dirname}")
     for filename in files:
-        if(filename.endswith('.tif') or filename.endswith('.tiff') or filename.endswith('.qml')):
-            print(f"Adding {filename} to the zip file")
-            zf.write(os.path.join(dirname, filename), arcname=filename)
+           if (filename.contains('somma') or 
+           filename.contains('serie_temporale') or
+           filename.contains('mappa') or
+           filename.contains('legend.qml')):
+               print(f"Adding {filename} to the zip file")
+               zf.write(os.path.join(dirname, filename), arcname=filename)
+    
 zf.close()
-   
 upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=zip_file)
