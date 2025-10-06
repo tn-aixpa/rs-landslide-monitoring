@@ -166,7 +166,18 @@ wfbuild = workflow.run(action="build", wait=True)
 wfbuild.spec
 ```
 
-After the build, the pipeline specification and configuration is displayed as the result of this step(wfbuild.spec). The same can be achieved from the console UI dashboard or the left menu using the 'INSPECTOR' button which opens a dialog containing the resource in JSON format.
+## 8. Run workflow.
+
+```python
+workflow_run = workflow.run(action="pipeline", parameters={
+    "startDate": "2020-11-01",
+    "endDate": "2021-11-07",
+    "geometry": "POLYGON ((10.595369 45.923394, 10.644894 45.923394, 10.644894 45.945838, 10.595369 45.945838, 10.595369 45.923394))",
+    "outputName": "landslide_2020-11-01_2020-11-07"
+    })
+```
+
+See the complete jypter notebook <a href="./src/workflow.ipynb">here</a>. After the build, the pipeline specification and configuration is displayed as the result of this step(wfbuild.spec). The same can be achieved from the console UI dashboard or the left menu using the 'INSPECTOR' button which opens a dialog containing the resource in JSON format.
 
 ```python
 {
