@@ -55,7 +55,7 @@ Register 'download_images_s1' operation in the project.
 function_s1 = proj.new_function(
     "download_images_s1",
     kind="container",
-    image="ghcr.io/tn-aixpa/sentinel-tools:0.11.5",
+    image="ghcr.io/tn-aixpa/sentinel-tools:0.11.6",
     command="python")
 ```
 
