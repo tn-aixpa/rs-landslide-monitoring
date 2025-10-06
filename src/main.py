@@ -846,12 +846,12 @@ zf = zipfile.ZipFile(zip_file, "w")
 for dirname, subdirs, files in os.walk(result_path):
     print(f"Processing directory: {dirname}")
     for filename in files:
-           if (filename.contains('somma') or 
-           filename.contains('serie_temporale') or
-           filename.contains('mappa') or
-           filename.contains('legend.qml')):
-               print(f"Adding {filename} to the zip file")
-               zf.write(os.path.join(dirname, filename), arcname=filename)
+        if (("somma" in filename) or 
+            ("serie_temporale" in filename) or 
+            ("mappa" in filename) or 
+            filename.endswith('legend.qml')):
+            print(f"Adding {filename} to the zip file")
+            zf.write(os.path.join(dirname, filename), arcname=filename)
     
 zf.close()
 upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=zip_file)
