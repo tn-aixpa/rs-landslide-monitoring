@@ -844,8 +844,8 @@ zip_file = os.path.join(result_path, output_artifact_name + '.zip')
 print(f"Creating zip file: {zip_file}")
 zf = zipfile.ZipFile(zip_file, "w")
 for dirname, subdirs, files in os.walk(result_path):
-    if (dirname != "./output"):
-        continue
+    # if (dirname != "./output"):
+    #     continue
     print(f"Processing directory: {dirname}")
     for filename in files:
         if(filename.endswith('.tif') or filename.endswith('.tiff') or filename.endswith('.qml')):
