@@ -497,7 +497,7 @@ if __name__ == "__main__":
                                          list_dates_descending[sorted_indeces_descending[i]])
         output_path_ascending = os.path.join(result_path, output_path, "ascending")
         output_path_descending = os.path.join(result_path, output_path, "descending")
-        output_path_folder = os.path.join(maindir, result_path, output_path)
+        # output_path_folder = os.path.join(maindir, result_path, output_path)
     
         print(f"output_path = {output_path}")
         print(f"output_path_ascending = {output_path_ascending}")
@@ -844,8 +844,6 @@ zip_file = os.path.join(result_path, output_artifact_name + '.zip')
 print(f"Creating zip file: {zip_file}")
 zf = zipfile.ZipFile(zip_file, "w")
 for dirname, subdirs, files in os.walk(result_path):
-    # if (dirname != "./output"):
-    #     continue
     print(f"Processing directory: {dirname}")
     for filename in files:
            if (filename.contains('somma') or 
