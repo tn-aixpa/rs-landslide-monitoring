@@ -498,15 +498,7 @@ if __name__ == "__main__":
         output_path_ascending = os.path.join(result_path, output_path, "ascending")
         output_path_descending = os.path.join(result_path, output_path, "descending")
         # output_path_folder = os.path.join(maindir, result_path, output_path)
-    
-        print(f"output_path = {output_path}")
-        print(f"output_path_ascending = {output_path_ascending}")
-        print(f"output_path_descending = {output_path_descending}")
-        if not os.path.isdir(output_path_ascending):
-            os.makedirs(output_path_ascending)
-        if not os.path.isdir(output_path_descending):
-            os.makedirs(output_path_descending)
-        
+
         # Check if the zip files are valid
         try:
             archive1 = zipfile.ZipFile(os.path.join(input_path_ascending, filename_ascending1), 'r')
@@ -532,6 +524,14 @@ if __name__ == "__main__":
             print(f"Warning: {filename_descending2} is a bad zip file. Skipping this iteration.")
             continue
         archive1.close()
+    
+        print(f"output_path = {output_path}")
+        print(f"output_path_ascending = {output_path_ascending}")
+        print(f"output_path_descending = {output_path_descending}")
+        if not os.path.isdir(output_path_ascending):
+            os.makedirs(output_path_ascending)
+        if not os.path.isdir(output_path_descending):
+            os.makedirs(output_path_descending)
         
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
         # tetha, alpha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
