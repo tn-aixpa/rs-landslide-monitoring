@@ -506,6 +506,8 @@ if __name__ == "__main__":
             os.makedirs(output_path_ascending)
         if not os.path.isdir(output_path_descending):
             os.makedirs(output_path_descending)
+        
+        # Check if the zip files are valid
         try:
             archive1 = zipfile.ZipFile(os.path.join(input_path_ascending, filename_ascending1), 'r')
         except zipfile.BadZipFile:
@@ -530,6 +532,7 @@ if __name__ == "__main__":
             print(f"Warning: {filename_descending2} is a bad zip file. Skipping this iteration.")
             continue
         archive1.close()
+        
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
         # tetha, alpha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
         #                               output_path_descending,subswath='IW1')#east
