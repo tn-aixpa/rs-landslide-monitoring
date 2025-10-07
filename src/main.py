@@ -497,8 +497,7 @@ if __name__ == "__main__":
                                          list_dates_descending[sorted_indeces_descending[i]])
         output_path_ascending = os.path.join(result_path, output_path, "ascending")
         output_path_descending = os.path.join(result_path, output_path, "descending")
-        # output_path_folder = os.path.join(maindir, result_path, output_path)
-
+     
         # Check if the zip files are valid
         try:
             archive1 = zipfile.ZipFile(os.path.join(input_path_ascending, filename_ascending1), 'r')
@@ -528,14 +527,13 @@ if __name__ == "__main__":
         print(f"output_path = {output_path}")
         print(f"output_path_ascending = {output_path_ascending}")
         print(f"output_path_descending = {output_path_descending}")
+        
         if not os.path.isdir(output_path_ascending):
             os.makedirs(output_path_ascending)
         if not os.path.isdir(output_path_descending):
             os.makedirs(output_path_descending)
         
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
-        # tetha, alpha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
-        #                               output_path_descending,subswath='IW1')#east
         tetha, alpha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
                              output_path_descending,subswath='IW2')#west
         list_theta_descending.append(tetha)
@@ -543,8 +541,6 @@ if __name__ == "__main__":
         print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
         tetha, alpha = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
                                       output_path_ascending,subswath='IW1')#west
-        # _,_ = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
-        #                      output_path_ascending,subswath='IW2')#east
         list_theta_ascending.append(tetha)
         list_alpha_ascending.append(alpha)
 
