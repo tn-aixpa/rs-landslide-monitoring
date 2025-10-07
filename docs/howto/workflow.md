@@ -55,7 +55,7 @@ Register 'download_images_s1' operation in the project.
 function_s1 = proj.new_function(
     "download_images_s1",
     kind="container",
-    image="ghcr.io/tn-aixpa/sentinel-tools:0.11.5",
+    image="ghcr.io/tn-aixpa/sentinel-tools:0.11.6",
     command="python")
 ```
 
@@ -66,7 +66,7 @@ The purpose of this function is to download sentinel1 data(GRD image tiles) base
 ```python
 function_rs = proj.new_function(
     "elaborate",kind="container",
-     image="ghcr.io/tn-aixpa/rs-landslide-monitoring:2.7_b9",
+     image="ghcr.io/tn-aixpa/rs-landslide-monitoring:3.0",
      command="/bin/bash",
      code_src="launch.sh")
 ```
@@ -166,7 +166,18 @@ wfbuild = workflow.run(action="build", wait=True)
 wfbuild.spec
 ```
 
-After the build, the pipeline specification and configuration is displayed as the result of this step(wfbuild.spec). The same can be achieved from the console UI dashboard or the left menu using the 'INSPECTOR' button which opens a dialog containing the resource in JSON format.
+## 8. Run workflow.
+
+```python
+workflow_run = workflow.run(action="pipeline", parameters={
+    "startDate": "2020-11-01",
+    "endDate": "2021-11-07",
+    "geometry": "POLYGON ((10.595369 45.923394, 10.644894 45.923394, 10.644894 45.945838, 10.595369 45.945838, 10.595369 45.923394))",
+    "outputName": "landslide_2020-11-01_2020-11-07"
+    })
+```
+
+See the complete jypter notebook <a href="../../src/workflow.ipynb">here</a>. After the build, the pipeline specification and configuration is displayed as the result of this step(wfbuild.spec). The same can be achieved from the console UI dashboard or the left menu using the 'INSPECTOR' button which opens a dialog containing the resource in JSON format.
 
 ```python
 {
