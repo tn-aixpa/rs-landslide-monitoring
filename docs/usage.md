@@ -2,7 +2,7 @@
 
 ## Usage Scenario
 
-The main purpose of the tool is to provide perform the landslide-detection elaboration over the period of time (for e.g 6 months). The project implements a pipeline that downloads an image time series of Sentinel-1 Single Look Complex (SLC) images acquired in ascending and descending orbit directions. It processes couples of raw .SAFE or .zip Sentinel-1 images to compute the interferometry and coherence between them. The method calculates the total soil displacement for both ascending and descending directions, computes the horizontal and vertical displacement components, and outputs the cumulative sum of these components by filtering out areas with low coherence.
+The main purpose of the tool is to provide perform the landslide-detection elaboration over the period of time (for e.g 2 weeks). The project implements a pipeline that downloads an image time series of Sentinel-1 Single Look Complex (SLC) images acquired in ascending and descending orbit directions. It processes couples of raw .SAFE or .zip Sentinel-1 images to compute the interferometry and coherence between them. The method calculates the total soil displacement for both ascending and descending directions, computes the horizontal and vertical displacement components, and outputs the cumulative sum of these components by filtering out areas with low coherence.
 
 ## Input
 
