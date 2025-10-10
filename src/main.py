@@ -68,8 +68,8 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
             prodInfo = ga.find('productInformation')
             platHeading = np.float32(prodInfo.find('platformHeading').text)
     archive1.close()
-    tetha = 90 - platHeading
-    alpha = 180 - platHeading
+    tetha = platHeading
+    #alpha = 180 - platHeading
     
     print("Lettura:\n{}\n{}".format(file1,file2))
     g1 = Graph()
@@ -241,7 +241,7 @@ UNIT[\"m\", 1.0], AXIS[\"Easting\", EAST], AXIS[\"Northing\", NORTH], AUTHORITY[
     g4.add_node(Operator("Write", formatName="GeoTIFF-BigTIFF", file=os.path.join(output_path,"interferogram_deburst_unw_disp_TC.tif")),
                 node_id="writeTCtif",source="terrain-correction")
     g4.run()
-    return tetha, alpha
+    return tetha
 
 def v_ew_displ(path :str,list_filenames: list) -> np.float32:
     """
@@ -353,7 +353,7 @@ def v_ew_displ(path :str,list_filenames: list) -> np.float32:
         ew_asc = np.divide(asc,np.sin(inc_angle_asc*(np.pi/180)))
         v_desc = np.divide(desc,np.cos(inc_angle_desc*(np.pi/180)))
         ew_desc = np.divide(desc,np.sin(inc_angle_desc*(np.pi/180)))
-        v_displ_time_series[:,:,i] = np.mean(np.array([v_asc,v_desc]),axis=0)
+        v_displ_time_series[:,:,i] = -np.mean(np.array([v_asc,v_desc]),axis=0)
         ew_displ_time_series[:,:,i] = (ew_asc-ew_desc)/2
         coh_time_series[:,:,i] = np.mean(np.array([coh_asc,coh_desc]),axis=0)
         asc_time_series[:,:,i] = np.copy(asc)
@@ -476,9 +476,7 @@ if __name__ == "__main__":
     sorted_indeces_ascending = sorted(range(len(list_dates_ascending)), key=list_dates_ascending.__getitem__)
     sorted_indeces_descending = sorted(range(len(list_dates_descending)), key=list_dates_descending.__getitem__)
     list_theta_ascending = []
-    list_alpha_ascending = []
     list_theta_descending = []
-    list_alpha_descending = []
     if len(list_files_ascending) != len(list_files_descending) and abs(len(list_files_ascending) - len(list_files_descending)) < 2:
         warnings.warn("The number of ascending and descending images is different. The minimum number of images will be used.")
     elif abs(len(list_files_ascending) - len(list_files_descending)) >= 2:
@@ -534,15 +532,17 @@ if __name__ == "__main__":
             os.makedirs(output_path_descending)
         
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
-        tetha, alpha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
+        # tetha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
+        #                               output_path_descending,subswath='IW1')#east
+        tetha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
                              output_path_descending,subswath='IW2')#west
         list_theta_descending.append(tetha)
-        list_alpha_descending.append(alpha)
         print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
-        tetha, alpha = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
+        tetha = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
                                       output_path_ascending,subswath='IW1')#west
+        # _ = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
+        #                      output_path_ascending,subswath='IW2')#east
         list_theta_ascending.append(tetha)
-        list_alpha_ascending.append(alpha)
 
     # Upload the result artifact
     # print(f"Uploading Interferometric results to DigitalHub artifact")
@@ -578,9 +578,9 @@ if __name__ == "__main__":
                                   np.min(ew_displ_maps,axis=(0,1))>-1)#mean_coh>=th
     keep_list_filenames = [list_filenames[i] for i in range(len(list_filenames)) if keep_img_mask[i]]
     keep_list_tetha_ascending = [list_theta_ascending[i] for i in range(len(list_theta_ascending)) if keep_img_mask[i]]
-    keep_list_alpha_ascending = [list_alpha_ascending[i] for i in range(len(list_alpha_ascending)) if keep_img_mask[i]]
+    # keep_list_alpha_ascending = [list_alpha_ascending[i] for i in range(len(list_alpha_ascending)) if keep_img_mask[i]]
     keep_list_tetha_descending = [list_theta_descending[i] for i in range(len(list_theta_descending)) if keep_img_mask[i]]
-    keep_list_alpha_descending = [list_alpha_descending[i] for i in range(len(list_alpha_descending)) if keep_img_mask[i]]
+    # keep_list_alpha_descending = [list_alpha_descending[i] for i in range(len(list_alpha_descending)) if keep_img_mask[i]]
 
     v_displ_maps = v_displ_maps[:,:,keep_img_mask]
     ew_displ_maps = ew_displ_maps[:,:,keep_img_mask]
@@ -641,18 +641,18 @@ if __name__ == "__main__":
     #compute the c coefficient in ascending and descending
     c_ascending_time_series = np.zeros(inc_angle_asc.shape,dtype=np.float32)
     for i_c in range(c_ascending_time_series.shape[2]):
-        N = np.cos(np.deg2rad(90-inc_angle_asc[:,:,i_c]))*np.cos(np.deg2rad(list_theta_ascending[i_c]))
-        E = np.cos(np.deg2rad(90-inc_angle_asc[:,:,i_c]))*np.cos(np.deg2rad(list_alpha_ascending[i_c]))
-        H = np.sin(np.deg2rad(inc_angle_asc[:,:,i_c]))
-        c = np.divide(1,(np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90))*N)+((-np.cos(np.deg2rad(slope_map))*np.cos(np.deg2rad(aspect_map-90)))*E)+(np.cos(np.deg2rad(slope_map)*H)))
+        N = -np.sin(np.deg2rad(inc_angle_asc[:,:,i_c]))*np.cos(np.deg2rad(keep_list_tetha_ascending[i_c]))-(3*np.pi/2)
+        E = -np.sin(np.deg2rad(inc_angle_asc[:,:,i_c]))*np.sin(np.deg2rad(keep_list_tetha_ascending[i_c]))-(3*np.pi/2)
+        H = np.cos(np.deg2rad(inc_angle_asc[:,:,i_c]))
+        c = (np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90))*N)+((-np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90)))*E)+(np.sin(np.deg2rad(slope_map)*H))
         c_ascending_time_series[:,:,i_c] = np.copy(c)
     
     c_descending_time_series = np.zeros(inc_angle_desc.shape,dtype=np.float32)
     for i_c in range(c_descending_time_series.shape[2]):
-        N = np.cos(np.deg2rad(90-inc_angle_desc[:,:,i_c]))*np.cos(np.deg2rad(list_theta_descending[i_c]))
-        E = np.cos(np.deg2rad(90-inc_angle_desc[:,:,i_c]))*np.cos(np.deg2rad(list_alpha_descending[i_c]))
-        H = np.sin(np.deg2rad(inc_angle_desc[:,:,i_c]))
-        c = np.divide(1,(np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90))*N)+((-np.cos(np.deg2rad(slope_map))*np.cos(np.deg2rad(aspect_map-90)))*E)+(np.cos(np.deg2rad(slope_map)*H)))
+        N = -np.sin(np.deg2rad(inc_angle_desc[:,:,i_c]))*np.cos(np.deg2rad(keep_list_tetha_descending[i_c]))-(3*np.pi/2)
+        E = -np.sin(np.deg2rad(inc_angle_desc[:,:,i_c]))*np.sin(np.deg2rad(keep_list_tetha_descending[i_c]))-(3*np.pi/2)
+        H = np.cos(np.deg2rad(inc_angle_desc[:,:,i_c]))
+        c = (np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90))*N)+((-np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90)))*E)+(np.sin(np.deg2rad(slope_map)*H))
         c_descending_time_series[:,:,i_c] = np.copy(c)
 
     #save the stacked masked vertical displacement maps
