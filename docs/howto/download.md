@@ -10,9 +10,9 @@ PROJECT_NAME = "landslide-monitoring" # here goes the project name that you are 
 proj = dh.get_or_create_project(PROJECT_NAME)
 ```
 
-## 2. Log the Shape artifact
+## 2. Log the artifacts
 
-Log the shape file 'Shapes_TN' which can be downloaded from the [WebGIS Portal](https://webgis.provincia.tn.it/) from https://siatservices.provincia.tn.it/idt/vector/p_TN_377793f1-1094-4e81-810e-403897418b23.zip. Unzip the files in a folder named 'Shapes_TN' and then log it
+Log the shape files 'Shapes_TN' which can be downloaded from the [WebGIS Portal](https://webgis.provincia.tn.it/) from https://siatservices.provincia.tn.it/idt/vector/p_TN_377793f1-1094-4e81-810e-403897418b23.zip. Unzip the files in a folder named 'Shapes_TN' and then log it
 
 ```python
 artifact_name='Shapes_TN'
@@ -27,7 +27,14 @@ artifact = proj.get_artifact("Shapes_TN")
 artifact.key
 ```
 
-The resulting dataset will be registered as the project artifact in the datalake under the name `Shapes_TN`.
+Log the Map aritfact with three files (trentino_slope_map.tiff, trentino_aspect_map.tiff, and legend.qml). The files can be downloaded from the <a href="https://huggingface.co/datasets/lbergamasco/trentino-slope-map/tree/main">Huggingface repository</a>. Copy the three files inside a folder 'Map' and log it as project artifact
+
+```python
+artifact_name='Map'
+src_path='Map'
+artifact_data = proj.log_artifact(name=artifact_name, kind="artifact", source=src_path)
+```
+
 
 ## 3. Download Sentinel Data in ascending and descending order.
 
@@ -55,9 +62,9 @@ string_dict_data = """{
       'orbitDirection': 'ASCENDING',
       'relativeOrbitNumber': '117'
   } ,
-  'startDate': '2021-03-04',
-  'endDate': '2021-03-10',
-  'geometry': 'POLYGON ((11.687737 46.134408, 11.773911 46.134408, 11.773911 46.174363, 11.687737 46.174363, 11.687737 46.134408))',
+  'startDate': '2020-11-01',
+  'endDate': '2020-11-14',
+  'geometry': 'POLYGON ((10.595369 45.923394, 10.644894 45.923394, 10.644894 45.945838, 10.595369 45.945838, 10.595369 45.923394))',
   'area_sampling': 'True',
   'tmp_path_same_folder_dwl':'True',
   'artifact_name': 's1_ascending'
@@ -108,9 +115,9 @@ string_dict_data = """{
       'orbitDirection': 'DESCENDING',
       'relativeOrbitNumber': '168'
   } ,
-  'startDate': '2021-03-01',
-  'endDate': '2021-03-15',
-  'geometry': 'POLYGON ((11.687737 46.134408, 11.773911 46.134408, 11.773911 46.174363, 11.687737 46.174363, 11.687737 46.134408))',
+  'startDate': '2020-11-01',
+  'endDate': '2020-11-14',
+  'geometry': 'POLYGON ((10.595369 45.923394, 10.644894 45.923394, 10.644894 45.945838, 10.595369 45.945838, 10.595369 45.923394))',
   'area_sampling': 'True',
   'tmp_path_same_folder_dwl':'True',
   'artifact_name': 's1_descending'

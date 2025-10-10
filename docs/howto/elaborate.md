@@ -28,8 +28,8 @@ run_el = function_rs.run(
         "mount_path": "/app/files",
         "spec": { "size": "600Gi" }
     }],
-    args=['/shared/launch.sh', 's1_ascending', 's1_descending', '2021-03-01', '2021-07-30', 'landslide_2021-03-04_2021-07-30', 'Shapes_TN', 'ammprv_v.shp','POLYGON ((11.687737 46.134408, 11.773911 46.134408, 11.773911 46.174363, 11.687737 46.174363, 11.687737 46.134408))']
+    args=['/shared/launch.sh', 's1_ascending', 's1_descending', '2021-03-01', '2021-07-30', 'landslide_2020-11-01_2020-11-14', 'Shapes_TN', 'ammprv_v.shp', 'Map','POLYGON ((10.595369 45.923394, 10.644894 45.923394, 10.644894 45.945838, 10.595369 45.945838, 10.595369 45.923394))']
 )
 ```
 
-As indicated in the project documentation, the pixel based analysis performed in the elaboration steps are computation heavy. The best possible performance matrix is more or less around the configuration indicated in the step above. The amount of sentinal data can vary. A safe limit volume of 250Gi is specified as persistent volume claim to ensure significant data space. The function takes around 8-9 hours to complete with 16 CPUs and 64GB Ram for six months of data which is the default period. The multiple GeoTIFF raster files as output are saved in the project context as an artifact (landslide_2021-03-04_2021-07-30).
+As indicated in the project documentation, the pixel based analysis performed in the elaboration steps are computation heavy. The best possible performance matrix is more or less around the configuration indicated in the step above. The amount of sentinal data can vary. A safe limit volume of 300Gi is specified as persistent volume claim to ensure significant data space. The function takes around ~5 hours to complete with 16 CPUs and 64GB Ram for two weeks of data. The multiple GeoTIFF raster files as output are saved as a zip file in the project context as an artifact (landslide_2020-11-01_2020-11-14).

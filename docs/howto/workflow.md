@@ -29,7 +29,15 @@ artifact = proj.get_artifact("Shapes_TN")
 artifact.key
 ```
 
-The resulting dataset will be registered as the project artifact in the datalake under the name `Shapes_TN`.
+Log the Map aritfact with three files (trentino_slope_map.tiff, trentino_aspect_map.tiff, and legend.qml). The files can be downloaded from the <a href="https://huggingface.co/datasets/lbergamasco/trentino-slope-map/tree/main">Huggingface repository</a>. Copy the three files inside a folder 'Map' and log it as project artifact
+
+```python
+artifact_name='Map'
+src_path='Map'
+artifact_data = proj.log_artifact(name=artifact_name, kind="artifact", source=src_path)
+```
+
+The resulting dataset will be registered as the project artifacts in the datalake under the name `Shapes_TN` and `Map`.
 
 ## 3. Register 'Download' operations for sentinel1 data
 
@@ -91,8 +99,12 @@ from digitalhub_runtime_kfp.dsl import pipeline_context
 
 def myhandler(startDate, endDate, geometry, outputName):
     with pipeline_context() as pc:
-        string_dict_data_asc = """{"satelliteParams":{"satelliteType": "Sentinel1","processingLevel": "LEVEL1","sensorMode": "IW","productType": "SLC","orbitDirection": "ASCENDING","relativeOrbitNumber": "117"},"startDate": \"""" + str(startDate) + """\","endDate": \"""" + str(endDate) + """\","geometry": \"""" + str(geometry) + """\","area_sampling": "True","artifact_name": "s1_ascending"}"""
-        string_dict_data_des = """{"satelliteParams":{"satelliteType": "Sentinel1","processingLevel": "LEVEL1","sensorMode": "IW","productType": "SLC","orbitDirection": "DESCENDING","relativeOrbitNumber": "168"},"startDate": \"""" + str(startDate) + """\","endDate": \"""" + str(endDate) + """\","geometry": \"""" + str(geometry) + """\","area_sampling": "True","artifact_name": "s1_descending"}"""
+        
+        s1_ascending = "s1_ascending_" + str(outputName)
+        s1_descending = "s1_descending_"+ str(outputName) 
+    
+        string_dict_data_asc = """{"satelliteParams":{"satelliteType": "Sentinel1","processingLevel": "LEVEL1","sensorMode": "IW","productType": "SLC","orbitDirection": "ASCENDING","relativeOrbitNumber": "117"},"startDate": \"""" + str(startDate) + """\","endDate": \"""" + str(endDate) + """\","geometry": \"""" + str(geometry) + """\","area_sampling": "True","artifact_name": \"""" + str(s1_ascending) + """\"}"""
+        string_dict_data_des = """{"satelliteParams":{"satelliteType": "Sentinel1","processingLevel": "LEVEL1","sensorMode": "IW","productType": "SLC","orbitDirection": "DESCENDING","relativeOrbitNumber": "168"},"startDate": \"""" + str(startDate) + """\","endDate": \"""" + str(endDate) + """\","geometry": \"""" + str(geometry) + """\","area_sampling": "True","artifact_name": \"""" + str(s1_descending) + """\"}"""
         
         s1 = pc.step(name="download-asc",
                      function="download_images_s1",
@@ -131,9 +143,9 @@ def myhandler(startDate, endDate, geometry, outputName):
                         "volume_type": "persistent_volume_claim",
                         "name": "volume-land",
                         "mount_path": "/app/data",
-                        "spec": { "size": "2048Gi" }
+                        "spec": { "size": "500Gi" }
                     }],
-                     args=['/shared/launch.sh', 's1_ascending', 's1_descending', str(startDate), str(endDate), str(outputName), 'Shapes_TN', 'ammprv_v.shp', str(geometry)]
+                     args=['/shared/launch.sh', str(s1_ascending), str(s1_descending), str(startDate), str(endDate), str(outputName), 'Shapes_TN', 'ammprv_v.shp', 'Map',  str(geometry)]
                      ).after(s2)
      
 
@@ -171,9 +183,9 @@ wfbuild.spec
 ```python
 workflow_run = workflow.run(action="pipeline", parameters={
     "startDate": "2020-11-01",
-    "endDate": "2021-11-07",
+    "endDate": "2021-11-14",
     "geometry": "POLYGON ((10.595369 45.923394, 10.644894 45.923394, 10.644894 45.945838, 10.595369 45.945838, 10.595369 45.923394))",
-    "outputName": "landslide_2020-11-01_2020-11-07"
+    "outputName": "landslide_2020-11-01_2020-11-14"
     })
 ```
 
