@@ -534,15 +534,15 @@ if __name__ == "__main__":
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
         # tetha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
         #                               output_path_descending,subswath='IW1')#east
-        tetha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
+        tetha_descending = interferometry(input_path_descending, filename_descending1, filename_descending2, 
                              output_path_descending,subswath='IW2')#west
-        list_theta_descending.append(tetha)
+        list_theta_descending.append(tetha_descending)
         print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
-        tetha = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
+        tetha_ascending = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
                                       output_path_ascending,subswath='IW1')#west
         # _ = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
         #                      output_path_ascending,subswath='IW2')#east
-        list_theta_ascending.append(tetha)
+        list_theta_ascending.append(tetha_ascending)
 
     # Upload the result artifact
     # print(f"Uploading Interferometric results to DigitalHub artifact")
