@@ -68,7 +68,7 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
             prodInfo = ga.find('productInformation')
             platHeading = np.float32(prodInfo.find('platformHeading').text)
     archive1.close()
-    tetha = platHeading
+    tetha = np.copy(platHeading)
     #alpha = 180 - platHeading
     
     print("Lettura:\n{}\n{}".format(file1,file2))
@@ -537,11 +537,13 @@ if __name__ == "__main__":
         tetha_descending = interferometry(input_path_descending, filename_descending1, filename_descending2, 
                              output_path_descending,subswath='IW2')#west
         list_theta_descending.append(tetha_descending)
+        print("Platform heading angle descending: {}".format(tetha_descending))
         print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
         tetha_ascending = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
                                       output_path_ascending,subswath='IW1')#west
         # _ = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
         #                      output_path_ascending,subswath='IW2')#east
+        print("Platform heading angle ascending: {}".format(tetha_ascending))
         list_theta_ascending.append(tetha_ascending)
 
     # Upload the result artifact
@@ -645,6 +647,7 @@ if __name__ == "__main__":
         #compute the c coefficient in ascending and descending
         c_ascending_time_series = np.zeros(inc_angle_asc.shape,dtype=np.float32)
         for i_c in range(c_ascending_time_series.shape[2]):
+            print("Platform heading angle ascending for time step {}: {}".format(i_c,keep_list_tetha_ascending[i_c]))
             N = -np.sin(np.deg2rad(inc_angle_asc[:,:,i_c]))*np.cos(np.deg2rad(keep_list_tetha_ascending[i_c]))-(3*np.pi/2)
             E = -np.sin(np.deg2rad(inc_angle_asc[:,:,i_c]))*np.sin(np.deg2rad(keep_list_tetha_ascending[i_c]))-(3*np.pi/2)
             H = np.cos(np.deg2rad(inc_angle_asc[:,:,i_c]))
@@ -653,6 +656,7 @@ if __name__ == "__main__":
         
         c_descending_time_series = np.zeros(inc_angle_desc.shape,dtype=np.float32)
         for i_c in range(c_descending_time_series.shape[2]):
+            print("Platform heading angle descending for time step {}: {}".format(i_c,keep_list_tetha_descending[i_c]))
             N = -np.sin(np.deg2rad(inc_angle_desc[:,:,i_c]))*np.cos(np.deg2rad(keep_list_tetha_descending[i_c]))-(3*np.pi/2)
             E = -np.sin(np.deg2rad(inc_angle_desc[:,:,i_c]))*np.sin(np.deg2rad(keep_list_tetha_descending[i_c]))-(3*np.pi/2)
             H = np.cos(np.deg2rad(inc_angle_desc[:,:,i_c]))
