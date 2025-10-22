@@ -60,7 +60,7 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     archive1 = zipfile.ZipFile(file1,'r')
     platHeading = 0
     for name in archive1.namelist():
-        if (not 'calibration' in name) and 'annotation' in name and iw in name and 'vv' in name:
+        if (not 'calibration' in name) and 'annotation' in name and iw.lower() in name and 'vv' in name:
             metadata1 = archive1.open(name)
             tree = ET.parse(metadata1)
             root = tree.getroot()
