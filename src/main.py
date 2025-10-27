@@ -60,7 +60,8 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     archive1 = zipfile.ZipFile(file1,'r')
     platHeading = 0
     for name in archive1.namelist():
-        if (not 'calibration' in name) and 'annotation' in name and iw.lower() in name and 'vv' in name:
+        if (not 'calibration' in name) and (not 'rfi' in name) and ('annotation' in name) and (iw.lower() in name) and ('vv' in name):
+            print("Reading platform heading from: {}".format(name))
             metadata1 = archive1.open(name)
             tree = ET.parse(metadata1)
             root = tree.getroot()
@@ -487,12 +488,16 @@ if __name__ == "__main__":
         filename_ascending2 = list_files_ascending[sorted_indeces_ascending[i]]
         filename_descending1 = list_files_descending[sorted_indeces_descending[i-1]]
         filename_descending2 = list_files_descending[sorted_indeces_descending[i]]
-        if filename_descending1<filename_ascending1:
-            output_path = "{}-{}".format(list_dates_descending[sorted_indeces_descending[i-1]],
-                                         list_dates_ascending[sorted_indeces_ascending[i]])
-        elif filename_ascending1<filename_descending1:
-            output_path = "{}-{}".format(list_dates_ascending[sorted_indeces_ascending[i-1]],
-                                         list_dates_descending[sorted_indeces_descending[i]])
+        date_descending1 = list_dates_descending[sorted_indeces_descending[i-1]]
+        date_descending2 = list_dates_descending[sorted_indeces_descending[i]]
+        date_ascending1 = list_dates_ascending[sorted_indeces_ascending[i-1]]
+        date_ascending2 = list_dates_ascending[sorted_indeces_ascending[i]]
+        if date_descending1<date_ascending1:
+            output_path = "{}-{}".format(date_descending1,
+                                         date_ascending2)
+        elif date_ascending1<date_descending1:
+            output_path = "{}-{}".format(date_ascending1,
+                                         date_descending2)
         output_path_ascending = os.path.join(result_path, output_path, "ascending")
         output_path_descending = os.path.join(result_path, output_path, "descending")
      
