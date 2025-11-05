@@ -199,10 +199,14 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     with open(os.path.join(unwrap_folder,wrapped_folder,cohfile),'rb') as f:
         data_coh = np.fromfile(f, dtype=np.float32)
     coh = data_coh.reshape((height,width))
-    
-    image_unwrapped,_ = snaphu.unwrap(igram, coh, nlooks=23.8, cost="defo", ntiles=(20,20), init='mcf',#23.8
-                                      tile_overlap=(200,200), nproc=4, min_region_size=200, single_tile_reoptimize=False,
-                                      regrow_conncomps=False)
+    try:
+        image_unwrapped,_ = snaphu.unwrap(igram, coh, nlooks=23.8, cost="defo", ntiles=(20,20), init='mcf',#23.8
+                                        tile_overlap=(200,200), nproc=4, min_region_size=200, single_tile_reoptimize=False,
+                                        regrow_conncomps=False)
+    except Exception as e:
+        print("Snaphu unwrapping failed with error: {}. Deleting the folder {} and skipping the interferometry computation of subswath {}.".format(e, output_path, iw))
+        shutil.rmtree(output_path)
+        return 9999.0
 
     # target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(output_path,"unw_phase.tif"), 
     #                                 image_unwrapped.shape[1], image_unwrapped.shape[0], 1, gdal.GDT_Float32,
@@ -537,19 +541,44 @@ if __name__ == "__main__":
             os.makedirs(output_path_descending)
         
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
-        # tetha = interferometry(input_path_descending, filename_descending1, filename_descending2, 
+        # tetha_descending_iw1 = interferometry(input_path_descending, filename_descending1, filename_descending2, 
         #                               output_path_descending,subswath='IW1')#east
-        tetha_descending = interferometry(input_path_descending, filename_descending1, filename_descending2, 
+        tetha_descending_iw2 = interferometry(input_path_descending, filename_descending1, filename_descending2, 
                              output_path_descending,subswath='IW2')#west
-        list_theta_descending.append(tetha_descending)
-        print("Platform heading angle descending: {}".format(tetha_descending))
+        # if tetha_descending_iw1!=9999.0:
+        #     tetha_descending = tetha_descending_iw1
+        if tetha_descending_iw2!=9999.0:
+            tetha_descending = tetha_descending_iw2
+        else:
+            tetha_descending = 9999.0
+
+        if tetha_descending!=9999.0:
+            list_theta_descending.append(tetha_descending)
+            print("Platform heading angle descending: {}".format(tetha_descending))
         print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
-        tetha_ascending = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
-                                      output_path_ascending,subswath='IW1')#west
-        # _ = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
-        #                      output_path_ascending,subswath='IW2')#east
-        print("Platform heading angle ascending: {}".format(tetha_ascending))
-        list_theta_ascending.append(tetha_ascending)
+        if tetha_descending_iw2!=9999.0:
+            tetha_ascending_iw1 = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
+                                        output_path_ascending,subswath='IW1')#west
+        else:
+            print("Skipping ascending IW1 interferometry computation due to failure in descending IW2 interferometry.")
+            tetha_ascending_iw1 = 9999.0
+        # if tetha_descending_iw1!=9999.0:
+            # tetha_ascending_iw2 = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
+            #                      output_path_ascending,subswath='IW2')#east
+        # else:
+            # print("Skipping ascending IW2 interferometry computation due to failure in descending IW1 interferometry.")
+            # tetha_ascending_iw2 = 9999.0
+        
+        if tetha_ascending_iw1!=9999.0:
+            tetha_ascending = tetha_ascending_iw1
+        # elif tetha_ascending_iw2!=9999.0:
+            # tetha_ascending = tetha_ascending_iw2
+        else:
+            tetha_ascending = 9999.0
+        
+        if tetha_ascending!=9999.0:
+            list_theta_ascending.append(tetha_ascending)
+            print("Platform heading angle ascending: {}".format(tetha_ascending))
 
     # Upload the result artifact
     # print(f"Uploading Interferometric results to DigitalHub artifact")
