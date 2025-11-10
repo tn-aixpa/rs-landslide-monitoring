@@ -63,7 +63,7 @@ Register 'download_images_s1' operation in the project.
 function_s1 = proj.new_function(
     "download_images_s1",
     kind="container",
-    image="ghcr.io/tn-aixpa/sentinel-tools:0.11.6",
+    image="ghcr.io/tn-aixpa/sentinel-tools:0.11.7",
     command="python")
 ```
 
@@ -74,7 +74,7 @@ The purpose of this function is to download sentinel1 data(GRD image tiles) base
 ```python
 function_rs = proj.new_function(
     "elaborate",kind="container",
-     image="ghcr.io/tn-aixpa/rs-landslide-monitoring:3.3",
+     image="ghcr.io/tn-aixpa/rs-landslide-monitoring:3.7",
      command="/bin/bash",
      code_src="launch.sh")
 ```
