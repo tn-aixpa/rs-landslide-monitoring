@@ -37,7 +37,7 @@ operations:
       framework: aixpa
       spec:
         kind: container
-        image: ghcr.io/tn-aixpa/sentinel-tools:0.11.6
+        image: ghcr.io/tn-aixpa/sentinel-tools:0.11.7
     inputs:
       - parameters:
           - name: start_date
@@ -66,7 +66,7 @@ operations:
       framework: aixpa
       spec:
         kind: container
-        image: ghcr.io/tn-aixpa/rs-landslide-monitoring:3.3
+        image: ghcr.io/tn-aixpa/rs-landslide-monitoring:3.7
     inputs:
       - parameters:
           - name: start_date
