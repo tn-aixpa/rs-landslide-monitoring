@@ -9,8 +9,11 @@ The project pipeline output GeoTiff Raster files containing:
 - Cumulative sum and temporal variation of the horizontal displacement ;
 - Cumulative sum and temporal variation of the vertical displacement;
 - Cumulative sum and temporal variation of the total displacement of ascending and descending Sentinel-1 images;
+- Cumulative sum of the horizontal displacement of the areas where the cumulative sum of the ascending and descending displacements has an opposite sign;
+- Cumulative sum of the vertical displacement of the areas where the cumulative sum of the ascending and descending displacements has an opposite sign;
 - Mean and temporal variation of the coherence maps;
-- Mean and temporal variation of the coherence maps of ascending and descending Sentinel-1 image;
+- Mean and temporal variation of the coherence maps of ascending and descending Sentinel-1 images;
+- Temporal variation of the C coefficient map representing the ratio of effective displacement computed in ascending and descending orbits;
 
 #### AIxPA
 
@@ -28,6 +31,8 @@ The product contains operations for
     images.
   - Filteration of lowest coherence areas after average operation.
 - Log results as GeoTIFF raster files.
+
+The file "legend.qml", provided together with the output GeoTiff Raster files, allows for visualizing the latter with a colormap that depends on the displacement. This file is a QGIS style file intended for use with GeoTiff Raster files that display displacement information. When a GeoTiff Raster file displaying displacement information is loaded in QGIS, the user can click on the file layer and navigate to "Style-> Load Style" in the bottom left part of the window to load "legend.qml".
 
 ## Requirements
 
