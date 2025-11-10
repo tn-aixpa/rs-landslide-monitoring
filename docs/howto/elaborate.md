@@ -6,7 +6,7 @@
 function_rs = proj.new_function(
     "elaborate",
     kind="container",
-    image="ghcr.io/tn-aixpa/rs-landslide-monitoring:3.7",
+    image="ghcr.io/tn-aixpa/rs-landslide-monitoring:0.14.6",
     command="/bin/bash",
     code_src="launch.sh")
 ```
