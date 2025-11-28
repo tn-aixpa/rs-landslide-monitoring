@@ -1,4 +1,4 @@
-FROM ghcr.io/tn-aixpa/rsde-tools:2.7_b1
+FROM ghcr.io/tn-aixpa/rsde-tools:0.14.6
 RUN conda init bash && . ~/.bashrc 
 
 WORKDIR /app
