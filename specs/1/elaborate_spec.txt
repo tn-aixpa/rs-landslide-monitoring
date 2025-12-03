@@ -1,0 +1,33 @@
+args:
+  - /shared/launch.sh
+  - s1_ascending_landslide_2020-10-01_2021-01-01
+  - s1_descending_landslide_2020-10-01_2021-01-01
+  - 2020-10-01
+  - 2021-01-01
+  - landslide_2020-10-01_2021-01-01
+  - Shapes_TN
+  - ammprv_v.shp
+  - Map
+  - POLYGON ((10.595369 45.923394, 10.644894 45.923394, 10.644894 45.945838,
+    10.595369 45.945838, 10.595369 45.923394))
+image: ghcr.io/tn-aixpa/rs-landslide-monitoring:0.14.6
+task: container+job://0-14-landslide-monitoring/975755473b574e978b058a05895351ad
+function: container://0-14-landslide-monitoring/elaborate:bd01d44216684aec953b0e633e1bb1c9
+volumes:
+  - name: volume-land
+    spec:
+      size: 800Gi
+    volume_type: persistent_volume_claim
+    mount_path: /app/data
+envs:
+  - name: TMPDIR
+    value: /app/data
+resources:
+  cpu: "6"
+  mem: 64Gi
+source:
+  source: launch.sh
+  base64: IyEvYmluL2Jhc2gKbHMgLWxhIC9zaGFyZWQKY2Qgfgpwd2QKc291cmNlIC5iYXNocmMKZXhwb3J0IFBBVEg9Ii9ob21lL25vbnJvb3QvbWluaWZvcmdlMy9zbmFwL2JpbjokUEFUSCIKZXhwb3J0IFBST0pfTElCPS9ob21lL25vbnJvb3QvbWluaWZvcmdlMy9zaGFyZS9wcm9qCmV4cG9ydCBHREFMX0RBVEE9L2hvbWUvbm9ucm9vdC9taW5pZm9yZ2UzL3NoYXJlL2dkYWwKZXhwb3J0IEdEQUxfRFJJVkVSX1BBVEg9L2hvbWUvbm9ucm9vdC9taW5pZm9yZ2UzL2xpYi9nZGFscGx1Z2lucwpleHBvcnQgUFJPSl9EQVRBPS9ob21lL25vbnJvb3QvbWluaWZvcmdlMy9zaGFyZS9wcm9qCmNkIC9hcHAKZWNobyAieydzMV9hc2NlbmRpbmcnOiAnJDEnLCAnczFfZGVzY2VuZGluZyc6ICckMicsICdzdGFydERhdGUnOickMycsICdlbmREYXRlJzonJDQnLCAnb3V0cHV0QXJ0aWZhY3ROYW1lJzogJyQ1JywgJ3NoYXBlQXJ0aWZhY3ROYW1lJzogJyQ2JywgJ3NoYXBlRmlsZU5hbWUnOiAnJDcnLCAnbWFwQXJ0aWZhY3ROYW1lJzogJyQ4JywgJ2dlb21XS1QnOickOSd9IgojZXhwb3J0IFBBVEg9Ii9ob21lL25vbnJvb3QvbWluaWZvcmdlMy9zbmFwLy5zbmFwL2F1eGRhdGEvZ2RhbC9nZGFsLTMtMC0wL2Jpbi86JFBBVEgiCmVjaG8gIkdEQUwgREFUQSBBRlRFUiBFWFBPUlQ6IgplY2hvICRHREFMX0RBVEEKZWNobyAiUFJPSl9MSUIgQUZURVIgRVhQT1JUIgplY2hvICRQUk9KX0xJQgpweXRob24gbWFpbi5weSAieydzMV9hc2NlbmRpbmcnOiAnJDEnLCAnczFfZGVzY2VuZGluZyc6ICckMicsICdzdGFydERhdGUnOickMycsICdlbmREYXRlJzonJDQnLCAnb3V0cHV0QXJ0aWZhY3ROYW1lJzogJyQ1JywgJ3NoYXBlQXJ0aWZhY3ROYW1lJzogJyQ2JywgJ3NoYXBlRmlsZU5hbWUnOiAnJDcnLCAnbWFwQXJ0aWZhY3ROYW1lJzogJyQ4JywgJ2dlb21XS1QnOickOSd9IgpleGl0
+fs_group: 8877
+command: /bin/bash
+local_execution: false

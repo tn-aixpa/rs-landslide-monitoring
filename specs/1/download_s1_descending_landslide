@@ -1,0 +1,30 @@
+args:
+  - main.py
+  - '{"satelliteParams":{"satelliteType": "Sentinel1","processingLevel":
+    "LEVEL1","sensorMode": "IW","productType": "SLC","orbitDirection":
+    "DESCENDING","relativeOrbitNumber": "168"},"startDate":
+    "2020-10-01","endDate": "2021-01-01","geometry": "POLYGON ((10.595369
+    45.923394, 10.644894 45.923394, 10.644894 45.945838, 10.595369 45.945838,
+    10.595369 45.923394))","area_sampling": "True","artifact_name":
+    "s1_descending_landslide_2020-10-01_2021-01-01"}'
+image: ghcr.io/tn-aixpa/sentinel-tools:0.14.6
+task: container+job://0-14-landslide-monitoring/8f2f45b95dd44f23acb4596730638145
+function: container://0-14-landslide-monitoring/download_images_s1:4c4ce0f7c6c0455f81f1422050fdd8be
+volumes:
+  - name: volume-land
+    spec:
+      size: 300Gi
+    volume_type: persistent_volume_claim
+    mount_path: /app/files
+envs:
+  - name: TMPDIR
+    value: /app/files
+resources:
+  cpu: "6"
+  mem: 32Gi
+fs_group: 8877
+secrets:
+  - CDSETOOL_ESA_USER
+  - CDSETOOL_ESA_PASSWORD
+command: python
+local_execution: false
