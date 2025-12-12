@@ -138,7 +138,7 @@ def myhandler(startDate, endDate, geometry, outputName):
                      function="elaborate",
                      action="job",
                      fs_group='8877',
-                     resources={"cpu": {"requests": "6", "limits": "12"},"mem":{"requests": "32Gi", "limits": "64Gi"}},
+                     resources={"cpu": "12", "mem": "64Gi"},
                      volumes=[{
                         "volume_type": "persistent_volume_claim",
                         "name": "volume-land",

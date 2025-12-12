@@ -85,7 +85,7 @@ run = function_s1.run(
     secrets=["CDSETOOL_ESA_USER","CDSETOOL_ESA_PASSWORD"],
     fs_group='8877',
     args=["main.py", string_dict_data],
-    resources={"cpu": {"requests": "3", "limits": "6"},"mem":{"requests": "32Gi", "limits": "64Gi"}},
+    resources={"cpu": "6", "mem":"64Gi"},
     volumes=[{
         "volume_type": "persistent_volume_claim",
         "name": "volume-land",
@@ -131,7 +131,7 @@ run = function_s1.run(
     secrets=["CDSETOOL_ESA_USER","CDSETOOL_ESA_PASSWORD"],
     fs_group='8877',
     args=["main.py", string_dict_data],
-    resources={"cpu": {"requests": "3", "limits": "6"},"mem":{"requests": "32Gi", "limits": "64Gi"}},
+    resources={"cpu": "6", "mem": "64Gi"},
     volumes=[{
         "volume_type": "persistent_volume_claim",
         "name": "volume-land",
