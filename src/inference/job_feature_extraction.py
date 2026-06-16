@@ -1,0 +1,661 @@
+import sys
+import json
+from snapista import Operator, OperatorParams
+from snapista import Graph
+from snapista import TargetBand, TargetBandDescriptors
+import os,gc
+import tempfile
+import numpy as np
+import shutil
+import digitalhub as dh
+from utils.skd_handler import upload_artifact
+from osgeo import gdal
+gdal.UseExceptions()
+from shapely.wkt import loads
+import geopandas as gpd
+import subprocess
+import zipfile
+#from skimage.restoration import unwrap_phase
+import warnings
+import logging
+
+tempfile.tempdir
+
+logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s.%(msecs)03d [%(threadName)s] %(levelname)-5s %(name)s.%(funcName)s - %(message)s",
+        datefmt="%d-%m-%Y %H:%M:%S",
+    )
+
+def v_ew_displ(path :str,list_filenames: list) -> np.float32:
+    """
+    Parameters
+    ----------
+    path : str
+        path of the folder containing the files to process.
+    list_filenames : list
+        the list of the files to process.
+
+    Returns
+    -------
+    v_displ_time_series: np.float32
+        an array containing all the vetical displacement maps in the time series.
+    ew_displ_time_series: np.float32
+        an array containing all the east-west displacement maps in the time series.
+    coh_time_series: np.float32
+        an array containing all the coherence maps in the time series.
+    asc_time_series: np.float32
+        an array containing the total displacement in the time series acquired in the ascending direction
+    desc_time_series: np.float32
+        an array containing the total displacement in the time series acquired in the descending direction
+    coh_asc_time_series: np.float32
+        an array containing the coherence map time series acquired in ascending direction
+    coh_desc_time_series: np.float32
+        an array containing the coherence map time series acquired in descending direction
+    proj: string
+        projection of the output files
+    geoT: list
+        the geo transformation of the output files
+    """
+    n_time = len(list_filenames)
+    for i,f in enumerate(list_filenames):
+        file_path = os.path.join(path,f)
+        asc_file_path = os.path.join(file_path,"ascending")
+        desc_file_path = os.path.join(file_path,"descending")
+
+        filename_ascending = [fi for fi in os.listdir(asc_file_path) if "mosaic.tif" in fi][0]
+        filename_descending = [fi for fi in os.listdir(desc_file_path) if "mosaic.tif" in fi][0]
+        
+        #reading ascending and descending images
+        print(r"Reading: {}".format(os.path.join(asc_file_path,filename_ascending)))
+        logging.info(f"Reading: {os.path.join(asc_file_path,filename_ascending)}")
+        ds = gdal.Open(os.path.join(asc_file_path,filename_ascending),gdal.GA_ReadOnly)
+        if i==0:
+            v_displ_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            ew_displ_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            coh_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            asc_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            desc_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            coh_asc_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            coh_desc_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            inc_angle_asc_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            inc_angle_desc_time_series = np.zeros([ds.RasterYSize,ds.RasterXSize,n_time],dtype=np.float32)
+            
+        asc = ds.GetRasterBand(1).ReadAsArray()
+        coh_asc = ds.GetRasterBand(2).ReadAsArray()
+        inc_angle_asc = ds.GetRasterBand(3).ReadAsArray()
+        ds = None
+        print(r"Reading: {}".format(os.path.join(desc_file_path,filename_descending)))
+        logging.info(f"Reading: {os.path.join(desc_file_path,filename_descending)}")
+        ds = gdal.Open(os.path.join(desc_file_path,filename_descending),gdal.GA_ReadOnly)
+        desc = ds.GetRasterBand(1).ReadAsArray()
+        coh_desc = ds.GetRasterBand(2).ReadAsArray()
+        inc_angle_desc = ds.GetRasterBand(3).ReadAsArray()
+        ds = None
+        #vertical and east-west displacement calculation
+        v_asc = np.divide(asc,np.cos(inc_angle_asc*(np.pi/180)))
+        ew_asc = np.divide(asc,np.sin(inc_angle_asc*(np.pi/180)))
+        v_desc = np.divide(desc,np.cos(inc_angle_desc*(np.pi/180)))
+        ew_desc = np.divide(desc,np.sin(inc_angle_desc*(np.pi/180)))
+        v_displ_time_series[:,:,i] = -np.mean(np.array([v_asc,v_desc]),axis=0)
+        ew_displ_time_series[:,:,i] = (ew_asc-ew_desc)/2
+        coh_time_series[:,:,i] = np.mean(np.array([coh_asc,coh_desc]),axis=0)
+        asc_time_series[:,:,i] = np.copy(asc)
+        desc_time_series[:,:,i] = np.copy(desc)
+        coh_asc_time_series[:,:,i] = np.copy(coh_asc)
+        coh_desc_time_series[:,:,i] = np.copy(coh_desc)
+        inc_angle_asc_time_series[:,:,i] = np.copy(inc_angle_asc)
+        inc_angle_desc_time_series[:,:,i] = np.copy(inc_angle_desc)
+    return v_displ_time_series, ew_displ_time_series, coh_time_series, asc_time_series, desc_time_series,coh_asc_time_series, coh_desc_time_series, proj, geoT, inc_angle_asc_time_series, inc_angle_desc_time_series
+
+
+# python main.py "{'s1_ascending':'s1_ascending', 's1_descending': 's1_descending', 'startDate':'2020-11-01', 'endDate':'2021-02-28','outputArtifactName': 'landslide_output', 'shapeArtifactName': 'Shapes_TN', 'shapeFileName': 'ammprv_v.shp', 'mapArtifactName': 'Map', 'geomWKT': 'POLYGON ((11.687737 46.134408, 11.773911 46.134408, 11.773911 46.174363, 11.687737 46.174363, 11.687737 46.134408))'}"
+
+if __name__ == "__main__":
+
+    global output_path, unwrap_folder,trentino_boundary_path,geo_wkt
+
+    args = sys.argv[1].replace("'","\"")
+    json_input = json.loads(args)
+    maindir = '.'
+    data_folder = 'data'
+    temp_folder = 'tmp'
+    output_folder = 'output'
+    input_folder = 'input'
+    phase_wrapping_folder = 'phase_unwrapping'
+
+    # read input parameters
+    s1_a = json_input['s1_ascending'] # sentinel-1 ascending data artifact name (e.g., 's1_ascending')
+    s1_d = json_input['s1_descending'] # sentinel-1 descending data artifact name (e.g., 's1_descending')
+    startDate = json_input['startDate'] # start date (e.g., '2021-03-01')
+    endDate = json_input['endDate'] # end date (e.g., '2021-03-30')
+    output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
+    shapeArtifact = json_input.get('shapeArtifactName') 
+    shapeFileName = json_input.get('shapeFileName')
+    mapArtifact = json_input.get('mapArtifactName')
+    geo_wkt = json_input['geomWKT'] # AOI geometry in WKT format
+    
+    project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
+    
+    # define paths
+    data_path = os.path.join(maindir, data_folder, input_folder)
+    result_path = os.path.join(maindir, data_folder, output_folder)
+    data_ascending_folder = os.path.join(data_path, 'ascending')
+    data_descending_folder = os.path.join(data_path, 'descending')
+    tempfile.tempdir = os.path.join(data_path, temp_folder)
+    unwrap_folder = os.path.join(tempfile.tempdir, phase_wrapping_folder)
+    trentino_boundary_folder = os.path.join(data_path, 'shape')
+    input_map_folder = os.path.join(data_path,'maps')
+    
+    # create data folders
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)  
+    # create ascending and descending data folders
+    if not os.path.exists(data_ascending_folder):
+        os.makedirs(data_ascending_folder)   
+    if not os.path.exists(data_descending_folder):
+        os.makedirs(data_descending_folder)
+    # create temp directory
+    if (not os.path.exists(tempfile.tempdir)):
+        os.makedirs(tempfile.tempdir)
+    # create result folder
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+    # create shape folder
+    if not os.path.exists(trentino_boundary_folder):
+        os.makedirs(trentino_boundary_folder)
+    # create input map folder
+    if not os.path.exists(input_map_folder):
+        os.makedirs(input_map_folder)
+
+    print(f"Input parameters: s1_ascending={s1_a}, s1_descending={s1_d}, startDate={startDate}, endDate={endDate}, output_artifact_name={output_artifact_name}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}, mapArtifact={mapArtifact}, geo_wkt={geo_wkt}")
+    # download data
+    project = dh.get_or_create_project(project_name)
+    print(f"Downloading artifacts for project: {project_name}")
+    # download s1 ascending data
+    print(f"Downloading artifact: {s1_a} inside {data_ascending_folder}")  
+    data_s1a = project.get_artifact(s1_a)
+    input_path_ascending = data_s1a.download(data_ascending_folder, overwrite=True)
+    # download s1 descending data
+    print(f"Downloading artifact: {s1_d} inside {data_descending_folder}")
+    data_s1d = project.get_artifact(s1_d)
+    input_path_descending = data_s1d.download(data_descending_folder, overwrite=True)
+    # download shape file if provided
+    print(f"Downloading shape artifact: {shapeArtifact} inside {trentino_boundary_folder}")
+    shape = project.get_artifact(shapeArtifact)
+    trentino_boundary_folder = shape.download(trentino_boundary_folder, overwrite=True)
+    trentino_boundary_path = os.path.join(trentino_boundary_folder, shapeFileName)
+    # download map files if provided
+    print(f"Downloading map artifact: {mapArtifact} inside {input_map_folder}")
+    map_data = project.get_artifact(mapArtifact)
+    input_map_folder = map_data.download(input_map_folder, overwrite=True)    
+    trentino_slope_map_path = os.path.join(input_map_folder,'trentino_slope_map.tif')
+    trentino_aspect_map_path = os.path.join(input_map_folder,'trentino_aspect_map.tif')
+    legend_path = os.path.join(input_map_folder,'legend.qml')
+    print("Data downloaded successfully.")   
+
+    print(f"input_path_ascending = {data_ascending_folder}")
+    print(f"input_path_descending = {data_descending_folder}")
+    print(f"tempfile.tempdir = {tempfile.tempdir}")
+    print(f"unwrap_folder = {unwrap_folder}")
+    print(f"trentino_boundary_path = {trentino_boundary_path}")
+    print(f"trentino_slope_map_path = {trentino_slope_map_path}")
+    print(f"trentino_aspect_map_path = {trentino_aspect_map_path}")
+    print(f"legend_path = {legend_path}")
+    
+    # Step 1. // To calculate the interferometric data between the ascending and descending images
+    # The interferometric data is calculated between the ascending and descending images, 
+    # and the results are stored in the output_path directory.
+    print("Step 1: Calculating interferometric data...")
+
+    # input_path_ascending = data_ascending_folder
+    # input_path_descending = data_descending_folder
+        
+    list_files_ascending = [f for f in os.listdir(input_path_ascending) if ".zip" in f]
+    print(f"list_files_ascending: {list_files_ascending}")
+    list_files_descending = [f for f in os.listdir(input_path_descending) if ".zip" in f]
+    print(f"list_files_descending: {list_files_descending}")
+    list_dates_ascending = [f[17:25] for f in list_files_ascending]
+    list_dates_descending = [f[17:25] for f in list_files_descending]
+    sorted_indeces_ascending = sorted(range(len(list_dates_ascending)), key=list_dates_ascending.__getitem__)
+    sorted_indeces_descending = sorted(range(len(list_dates_descending)), key=list_dates_descending.__getitem__)
+    list_theta_ascending = []
+    list_theta_descending = []
+    if len(list_files_ascending) != len(list_files_descending) and abs(len(list_files_ascending) - len(list_files_descending)) < 2:
+        warnings.warn("The number of ascending and descending images is different. The minimum number of images will be used.")
+    elif abs(len(list_files_ascending) - len(list_files_descending)) >= 2:
+        warnings.warn("The number of images in the ascending and descending image time series is very different. This could badly affect the interferometry. Please check the input data.")
+    n_images = min(len(list_files_ascending),len(list_files_descending))
+    for i in range(1,n_images,1):
+        filename_ascending1 = list_files_ascending[sorted_indeces_ascending[i-1]]
+        filename_ascending2 = list_files_ascending[sorted_indeces_ascending[i]]
+        filename_descending1 = list_files_descending[sorted_indeces_descending[i-1]]
+        filename_descending2 = list_files_descending[sorted_indeces_descending[i]]
+        date_descending1 = list_dates_descending[sorted_indeces_descending[i-1]]
+        date_descending2 = list_dates_descending[sorted_indeces_descending[i]]
+        date_ascending1 = list_dates_ascending[sorted_indeces_ascending[i-1]]
+        date_ascending2 = list_dates_ascending[sorted_indeces_ascending[i]]
+        if date_descending1<date_ascending1:
+            output_path = "{}-{}".format(date_descending1,
+                                         date_ascending2)
+        elif date_ascending1<date_descending1:
+            output_path = "{}-{}".format(date_ascending1,
+                                         date_descending2)
+        output_path_ascending = os.path.join(result_path, output_path, "ascending")
+        output_path_descending = os.path.join(result_path, output_path, "descending")
+     
+        # Check if the zip files are valid
+        try:
+            archive1 = zipfile.ZipFile(os.path.join(input_path_ascending, filename_ascending1), 'r')
+        except zipfile.BadZipFile:
+            print(f"Warning: {filename_ascending1} is a bad zip file. Skipping this iteration.")
+            continue
+        archive1.close()
+        try:
+            archive1 = zipfile.ZipFile(os.path.join(input_path_ascending, filename_ascending2), 'r')
+        except zipfile.BadZipFile:
+            print(f"Warning: {filename_ascending2} is a bad zip file. Skipping this iteration.")
+            continue
+        archive1.close()
+        try:
+            archive1 = zipfile.ZipFile(os.path.join(input_path_descending, filename_descending1), 'r')
+        except zipfile.BadZipFile:
+            print(f"Warning: {filename_descending1} is a bad zip file. Skipping this iteration.")
+            continue
+        archive1.close()
+        try:
+            archive1 = zipfile.ZipFile(os.path.join(input_path_descending, filename_descending2), 'r')
+        except zipfile.BadZipFile:
+            print(f"Warning: {filename_descending2} is a bad zip file. Skipping this iteration.")
+            continue
+        archive1.close()
+    
+        print(f"output_path = {output_path}")
+        print(f"output_path_ascending = {output_path_ascending}")
+        print(f"output_path_descending = {output_path_descending}")
+        
+        if not os.path.isdir(output_path_ascending):
+            os.makedirs(output_path_ascending)
+        if not os.path.isdir(output_path_descending):
+            os.makedirs(output_path_descending)
+        
+        print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
+        # tetha_descending_iw1 = interferometry(input_path_descending, filename_descending1, filename_descending2, 
+        #                               output_path_descending,subswath='IW1')#east
+        tetha_descending_iw2 = interferometry(input_path_descending, filename_descending1, filename_descending2, 
+                             output_path_descending,subswath='IW2')#west
+        # if tetha_descending_iw1!=9999.0:
+        #     tetha_descending = tetha_descending_iw1
+        if tetha_descending_iw2!=9999.0:
+            tetha_descending = tetha_descending_iw2
+        else:
+            tetha_descending = 9999.0
+
+        if tetha_descending!=9999.0:
+            list_theta_descending.append(tetha_descending)
+            print("Platform heading angle descending: {}".format(tetha_descending))
+        print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
+        if tetha_descending_iw2!=9999.0:
+            tetha_ascending_iw1 = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
+                                        output_path_ascending,subswath='IW1')#west
+        else:
+            print("Skipping ascending IW1 interferometry computation due to failure in descending IW2 interferometry.")
+            tetha_ascending_iw1 = 9999.0
+        # if tetha_descending_iw1!=9999.0:
+            # tetha_ascending_iw2 = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
+            #                      output_path_ascending,subswath='IW2')#east
+        # else:
+            # print("Skipping ascending IW2 interferometry computation due to failure in descending IW1 interferometry.")
+            # tetha_ascending_iw2 = 9999.0
+        
+        if tetha_ascending_iw1!=9999.0:
+            tetha_ascending = tetha_ascending_iw1
+        # elif tetha_ascending_iw2!=9999.0:
+            # tetha_ascending = tetha_ascending_iw2
+        else:
+            tetha_ascending = 9999.0
+        
+        if tetha_ascending!=9999.0:
+            list_theta_ascending.append(tetha_ascending)
+            print("Platform heading angle ascending: {}".format(tetha_ascending))
+
+    # Upload the result artifact
+    # print(f"Uploading Interferometric results to DigitalHub artifact")
+    # (artifact_name='interferometry',project_name=project_name,src_path=output_path_folder)
+    
+    # Step 2. // To calculate the vertical and east-west displacements from the interferometric data
+    # The vertical and east-west displacements are calculated from the interferometric data,
+    # and the results are stored in the output_path directory.
+    print("Step 2: Calculating vertical and east-west displacements...")
+    list_filenames = [f for f in os.listdir(result_path) if os.path.isdir(os.path.join(result_path, f))] # which list is this??
+
+    print(f"Found {len(list_filenames)} subdirectories in {result_path}")
+    #calculate the vertical and east-west displacements
+    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT, inc_angle_asc, inc_angle_desc= v_ew_displ(result_path, list_filenames)
+    #keep only the interferometry maps with a mean coherence value higher than 0.3
+    mean_coh = np.average(coh_maps,axis=(0,1))
+    th = 0.3
+    n_time = ew_displ_maps.shape[2]
+    offset_ew_displ_maps = np.zeros(n_time,dtype=np.float32)
+    offset_v_displ_maps = np.zeros(n_time,dtype=np.float32)
+    offset_asc = np.zeros(n_time,dtype=np.float32)
+    offset_desc = np.zeros(n_time,dtype=np.float32)
+    for i in range(n_time):
+        most_coh_points = coh_maps[:,:,i]>0.9
+        offset_ew_displ_maps[i] = np.mean(ew_displ_maps[:,:,i][most_coh_points])
+        offset_v_displ_maps[i] = np.mean(v_displ_maps[:,:,i][most_coh_points])
+        offset_asc[i] = np.mean(asc[:,:,i][most_coh_points])
+        offset_desc[i] = np.mean(desc[:,:,i][most_coh_points])
+    ew_displ_maps -= offset_ew_displ_maps
+    v_displ_maps -= offset_v_displ_maps
+    asc -= offset_asc
+    desc -= offset_desc
+    keep_img_mask = np.logical_and(np.logical_and(np.max(ew_displ_maps,axis=(0,1))<1,
+                                  np.min(ew_displ_maps,axis=(0,1))>-1),mean_coh>=th)
+    if np.sum(keep_img_mask)==0:
+        warnings.warn("No interferogram with mean coherence higher than {}. Skipping generation of tiff files for data insufficiency.".format(th))
+    else:
+        keep_list_filenames = [list_filenames[i] for i in range(len(list_filenames)) if keep_img_mask[i]]
+        keep_list_tetha_ascending = [list_theta_ascending[i] for i in range(len(list_theta_ascending)) if keep_img_mask[i]]
+        # keep_list_alpha_ascending = [list_alpha_ascending[i] for i in range(len(list_alpha_ascending)) if keep_img_mask[i]]
+        keep_list_tetha_descending = [list_theta_descending[i] for i in range(len(list_theta_descending)) if keep_img_mask[i]]
+        # keep_list_alpha_descending = [list_alpha_descending[i] for i in range(len(list_alpha_descending)) if keep_img_mask[i]]
+
+        v_displ_maps = v_displ_maps[:,:,keep_img_mask]
+        ew_displ_maps = ew_displ_maps[:,:,keep_img_mask]
+        coh_maps = coh_maps[:,:,keep_img_mask]
+        asc = asc[:,:,keep_img_mask]
+        desc = desc[:,:,keep_img_mask]
+        coh_asc = coh_asc[:,:,keep_img_mask]
+        coh_desc = coh_desc[:,:,keep_img_mask]
+        inc_angle_asc = inc_angle_asc[:,:,keep_img_mask]
+        inc_angle_desc = inc_angle_desc[:,:,keep_img_mask]
+
+        #compute the average over time
+        avg_coh_map = np.average(coh_maps,axis=-1)
+        masked_v_displ_maps = np.copy(v_displ_maps)
+        masked_ew_displ_maps = np.copy(ew_displ_maps)
+
+        cum_sum_ew_displ_map = np.sum(ew_displ_maps,axis=-1)
+        masked_cum_sum_ew_displ_map = np.copy(cum_sum_ew_displ_map)
+        masked_cum_sum_ew_displ_map[avg_coh_map<0.4] = np.nan
+        
+        cum_sum_v_displ_map = np.sum(v_displ_maps,axis=-1)
+        masked_cum_sum_v_displ_map = np.copy(cum_sum_v_displ_map)
+        masked_cum_sum_v_displ_map[avg_coh_map<0.4] = np.nan
+        
+        cum_sum_asc = np.sum(asc,axis=-1)
+        cum_sum_desc = np.sum(desc,axis=-1)
+        avg_coh_asc = np.average(coh_asc,axis=-1)
+        avg_coh_desc = np.average(coh_desc, axis=-1)
+        masked_cum_sum_asc = np.copy(cum_sum_asc)
+        masked_cum_sum_asc[avg_coh_asc<0.4] = np.nan
+        masked_cum_sum_desc = np.copy(cum_sum_desc)
+        masked_cum_sum_desc[avg_coh_desc<0.4] = np.nan
+
+        mask_AOI = np.logical_or(np.logical_and(masked_cum_sum_asc>0,masked_cum_sum_desc<0),
+                                np.logical_and(masked_cum_sum_asc<0,masked_cum_sum_desc>0))
+        cum_sum_ew_displ_map_AOI = np.copy(cum_sum_ew_displ_map)
+        cum_sum_ew_displ_map_AOI[np.logical_not(mask_AOI)] = np.nan
+        cum_sum_v_displ_map_AOI = np.copy(cum_sum_v_displ_map)
+        cum_sum_v_displ_map_AOI[np.logical_not(mask_AOI)] = np.nan
+
+        geometry = loads(geo_wkt)
+        aoi = gpd.GeoDataFrame(geometry=[geometry],crs="EPSG:4326")
+        aoi = aoi.to_crs(25832)
+        bounds = aoi.total_bounds
+        window = (bounds[0], bounds[3], bounds[2], bounds[1])
+        ds_trans = gdal.Translate(trentino_slope_map_path[:-4]+'_clip.tif', 
+                                    trentino_slope_map_path, width = inc_angle_asc[:,:,0].shape[1],
+                                    height = inc_angle_asc[:,:,0].shape[0], resampleAlg = 'bilinear',
+                                    projWin = window, projWinSRS = "EPSG:25832")
+        slope_map = ds_trans.GetRasterBand(1).ReadAsArray()
+        ds_trans = None
+        ds_trans = gdal.Translate(trentino_aspect_map_path[:-4]+'_clip.tif', 
+                                    trentino_aspect_map_path, width = inc_angle_asc[:,:,0].shape[1],
+                                    height = inc_angle_asc[:,:,0].shape[0], resampleAlg = 'bilinear',
+                                    projWin = window, projWinSRS = "EPSG:25832")
+        aspect_map = ds_trans.GetRasterBand(1).ReadAsArray()
+        ds_trans = None
+        #compute the c coefficient in ascending and descending
+        c_ascending_time_series = np.zeros(inc_angle_asc.shape,dtype=np.float32)
+        for i_c in range(c_ascending_time_series.shape[2]):
+            print("Platform heading angle ascending for time step {}: {}".format(i_c,keep_list_tetha_ascending[i_c]))
+            N = -np.sin(np.deg2rad(inc_angle_asc[:,:,i_c]))*np.cos(np.deg2rad(keep_list_tetha_ascending[i_c]))-(3*np.pi/2)
+            E = -np.sin(np.deg2rad(inc_angle_asc[:,:,i_c]))*np.sin(np.deg2rad(keep_list_tetha_ascending[i_c]))-(3*np.pi/2)
+            H = np.cos(np.deg2rad(inc_angle_asc[:,:,i_c]))
+            c = (np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90))*N)+((-np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90)))*E)+(np.sin(np.deg2rad(slope_map)*H))
+            c_ascending_time_series[:,:,i_c] = np.copy(c)
+        
+        c_descending_time_series = np.zeros(inc_angle_desc.shape,dtype=np.float32)
+        for i_c in range(c_descending_time_series.shape[2]):
+            print("Platform heading angle descending for time step {}: {}".format(i_c,keep_list_tetha_descending[i_c]))
+            N = -np.sin(np.deg2rad(inc_angle_desc[:,:,i_c]))*np.cos(np.deg2rad(keep_list_tetha_descending[i_c]))-(3*np.pi/2)
+            E = -np.sin(np.deg2rad(inc_angle_desc[:,:,i_c]))*np.sin(np.deg2rad(keep_list_tetha_descending[i_c]))-(3*np.pi/2)
+            H = np.cos(np.deg2rad(inc_angle_desc[:,:,i_c]))
+            c = (np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90))*N)+((-np.cos(np.deg2rad(slope_map))*np.sin(np.deg2rad(aspect_map-90)))*E)+(np.sin(np.deg2rad(slope_map)*H))
+            c_descending_time_series[:,:,i_c] = np.copy(c)
+
+        #save the stacked masked vertical displacement maps
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_verticale.tif'), 
+                                        masked_v_displ_maps.shape[1], masked_v_displ_maps.shape[0], masked_v_displ_maps.shape[2], gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(masked_v_displ_maps.shape[2]):
+            masked_v_displ_maps[:,:,i][coh_maps[:,:,i]<0.6] = np.nan
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(masked_v_displ_maps[:,:,i])
+        target_ds = None
+        gc.collect()
+        
+        #save the masked cumulative vertical displacement maps
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_verticale.tif'), 
+                                        masked_cum_sum_v_displ_map.shape[1], masked_cum_sum_v_displ_map.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(masked_cum_sum_v_displ_map)
+        target_ds = None
+        gc.collect()
+        
+        #save the stacked masked east-west displacement maps
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_orizzontale.tif'), 
+                                        masked_ew_displ_maps.shape[1], masked_ew_displ_maps.shape[0], masked_ew_displ_maps.shape[2], gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(masked_ew_displ_maps.shape[2]):
+            masked_ew_displ_maps[:,:,i][coh_maps[:,:,i]<0.6] = np.nan
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(masked_ew_displ_maps[:,:,i])
+        target_ds = None
+        gc.collect()
+        
+        #save the masked cumulative east-west displacement map
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_orizzontale.tif'), 
+                                        masked_cum_sum_ew_displ_map.shape[1], masked_cum_sum_ew_displ_map.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(masked_cum_sum_ew_displ_map)
+        target_ds = None
+        gc.collect()
+        
+        #save the stacked masked total displacement maps ascending
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_totale_ascendente.tif'), 
+                                        asc.shape[1], asc.shape[0], asc.shape[2], gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(asc.shape[2]):
+            asc[:,:,i][coh_asc[:,:,i]<0.6] = np.nan
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(asc[:,:,i])
+        target_ds = None
+        gc.collect()
+        
+        #save the masked cumulative total displacement map ascending
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_totale_ascendente.tif'), 
+                                        masked_cum_sum_asc.shape[1], masked_cum_sum_asc.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(masked_cum_sum_asc)
+        target_ds = None
+        gc.collect()
+        
+        #save the stacked masked total displacement maps descending
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_totale_discendente.tif'), 
+                                        desc.shape[1], desc.shape[0], desc.shape[2], gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(desc.shape[2]):
+            desc[:,:,i][coh_desc[:,:,i]<0.6] = np.nan
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(desc[:,:,i])
+        target_ds = None
+        gc.collect()
+        
+        #save the masked cumulative total displacement map ascending
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_totale_discendente.tif'), 
+                                        masked_cum_sum_desc.shape[1], masked_cum_sum_desc.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(masked_cum_sum_desc)
+        target_ds = None
+        gc.collect()
+        
+        #save the average coherence map
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media.tif'), 
+                                        avg_coh_map.shape[1], avg_coh_map.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(avg_coh_map)
+        target_ds = None
+        gc.collect()
+        
+        #save the stacked coherence maps
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza.tif'), 
+                                        avg_coh_map.shape[1], avg_coh_map.shape[0], coh_maps.shape[2], gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(coh_maps.shape[2]):
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(coh_maps[:,:,i])
+        target_ds = None
+        gc.collect()
+        
+        #save the average coherence map ascending
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media_ascendente.tif'), 
+                                        avg_coh_asc.shape[1], avg_coh_asc.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(avg_coh_asc)
+        target_ds = None
+        gc.collect()
+        
+        #save the stacked coherence maps
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza_ascendente.tif'), 
+                                        coh_asc.shape[1], coh_asc.shape[0], coh_asc.shape[2], gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(coh_asc.shape[2]):
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(coh_asc[:,:,i])
+        target_ds = None
+        gc.collect()
+        
+        #save the average coherence map descending
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media_dscendente.tif'), 
+                                        avg_coh_desc.shape[1], avg_coh_desc.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(avg_coh_desc)
+        target_ds = None
+        gc.collect()
+        
+        #save the stacked coherence maps
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza_discendente.tif'), 
+                                        coh_desc.shape[1], coh_desc.shape[0], coh_desc.shape[2], gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(coh_desc.shape[2]):
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(coh_desc[:,:,i])
+        target_ds = None
+        gc.collect()
+
+        #save the areas of interest cumulative east-west displacement map
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_orizzontale_AOI.tif'), 
+                                        cum_sum_ew_displ_map_AOI.shape[1], cum_sum_ew_displ_map_AOI.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(cum_sum_ew_displ_map_AOI)
+        target_ds = None
+        gc.collect()
+
+        #save the areas of interest cumulative vertical displacement map
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_verticale_AOI.tif'), 
+                                        cum_sum_v_displ_map_AOI.shape[1], cum_sum_v_displ_map_AOI.shape[0], 1, gdal.GDT_Float32,
+                                        options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        target_ds.GetRasterBand(1).WriteArray(cum_sum_v_displ_map_AOI)
+        target_ds = None
+        gc.collect()
+
+        #save the 1/c coefficient ascending
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_coefficiente_c_ascendente.tif'), 
+                                        c_ascending_time_series.shape[1], c_ascending_time_series.shape[0], c_ascending_time_series.shape[2], 
+                                        gdal.GDT_Float32,options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(c_ascending_time_series.shape[2]):
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(c_ascending_time_series[:,:,i])
+        target_ds = None
+        gc.collect()
+
+        #save the 1/c coefficient descending
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_coefficiente_c_discendente.tif'), 
+                                        c_descending_time_series.shape[1], c_descending_time_series.shape[0], c_descending_time_series.shape[2], 
+                                        gdal.GDT_Float32,options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
+        target_ds.SetGeoTransform(geoT)
+        target_ds.SetProjection(proj)
+        for i in range(c_descending_time_series.shape[2]):
+            target_ds.GetRasterBand(i+1).SetDescription(keep_list_filenames[i])
+            target_ds.GetRasterBand(i+1).WriteArray(c_descending_time_series[:,:,i])
+        target_ds = None
+        gc.collect()
+
+        shutil.copy(legend_path,os.path.join(result_path,'legend.qml'))
+
+        #upload output artifact
+        print(f"Uploading artifact: {output_artifact_name}, {output_artifact_name}")
+        zip_file = os.path.join(result_path, output_artifact_name + '.zip')
+        print(f"Creating zip file: {zip_file}")
+        zf = zipfile.ZipFile(zip_file, "w")
+        for dirname, subdirs, files in os.walk(result_path):
+            print(f"Processing directory: {dirname}")
+            for filename in files:
+                if (("somma" in filename) or 
+                    ("serie_temporale" in filename) or 
+                    ("mappa" in filename) or 
+                    filename.endswith('legend.qml')):
+                    print(f"Adding {filename} to the zip file")
+                    zf.write(os.path.join(dirname, filename), arcname=filename)
+            
+        zf.close()
+        upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=zip_file)
+
+    print("Processing completed.")
