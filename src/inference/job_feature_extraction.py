@@ -1,8 +1,5 @@
 import sys
 import json
-from snapista import Operator, OperatorParams
-from snapista import Graph
-from snapista import TargetBand, TargetBandDescriptors
 import os,gc
 import tempfile
 import numpy as np
@@ -13,11 +10,12 @@ from osgeo import gdal
 gdal.UseExceptions()
 from shapely.wkt import loads
 import geopandas as gpd
-import subprocess
 import zipfile
-#from skimage.restoration import unwrap_phase
 import warnings
 import logging
+import re
+from pathlib import Path
+from datetime import datetime
 
 tempfile.tempdir
 
@@ -26,6 +24,67 @@ logging.basicConfig(
         format="%(asctime)s.%(msecs)03d [%(threadName)s] %(levelname)-5s %(name)s.%(funcName)s - %(message)s",
         datefmt="%d-%m-%Y %H:%M:%S",
     )
+
+
+def get_folders_last_4_months(base_path: str) -> list[str]:
+    """
+    Seleziona le cartelle degli ultimi 4 mesi rispetto alla cartella
+    con la data più recente, basandosi sul formato YYYYMMDD_YYYYMMDD.
+
+    Args:
+        base_path: Percorso della directory contenente le cartelle
+
+    Returns:
+        Lista ordinata delle cartelle degli ultimi 4 mesi
+    """
+    pattern = re.compile(r'^\d{8}_\d{8}$')
+
+    base = Path(base_path)
+
+    # --- 1. Raccogli tutte le cartelle valide con le loro date ---
+    valid_folders: list[tuple[str, datetime, datetime]] = []
+
+    for folder in base.iterdir():
+        if not folder.is_dir():
+            continue
+        if not pattern.match(folder.name):
+            continue
+
+        parts = folder.name.split('_')
+        try:
+            date_start = datetime.strptime(parts[0], '%Y%m%d')
+            date_end   = datetime.strptime(parts[1], '%Y%m%d')
+        except ValueError:
+            continue
+
+        valid_folders.append((folder.name, date_start, date_end))
+
+    if not valid_folders:
+        print("Nessuna cartella nel formato YYYYMMDD_YYYYMMDD trovata.")
+        return []
+
+    # --- 2. Trova la data più recente tra tutte le cartelle ---
+    most_recent_date = max(date_end for _, _, date_end in valid_folders)
+
+    # --- 3. Calcola la cutoff: 4 mesi prima della data più recente ---
+    month = most_recent_date.month - 4
+    year  = most_recent_date.year
+    if month <= 0:
+        month += 12
+        year  -= 1
+    cutoff_date = most_recent_date.replace(year=year, month=month)
+
+    print(f"Data più recente trovata : {most_recent_date.strftime('%d/%m/%Y')}")
+    print(f"Cutoff (4 mesi prima)    : {cutoff_date.strftime('%d/%m/%Y')}\n")
+
+    # --- 4. Filtra le cartelle con data di fine >= cutoff ---
+    selected = [
+        name
+        for name, _, date_end in valid_folders
+        if date_end >= cutoff_date
+    ]
+
+    return sorted(selected)
 
 def v_ew_displ(path :str,list_filenames: list) -> np.float32:
     """
@@ -180,7 +239,8 @@ if __name__ == "__main__":
     # and the results are stored in the output_path directory.
     print("Calculating vertical and east-west displacements...")
     logging.info("Calculating vertical and east-west displacements...")
-    list_filenames = [f for f in os.listdir(mosaic_path) if os.path.isdir(os.path.join(mosaic_path, f))] # which list is this??
+    #come prendere solo i nomi dei file acquisisti gli ultimi 4 mesi?
+    list_filenames = get_folders_last_4_months(mosaic_path)
 
     print(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
     logging.info(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
