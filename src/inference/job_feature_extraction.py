@@ -26,16 +26,17 @@ logging.basicConfig(
     )
 
 
-def get_folders_last_4_months(base_path: str) -> list[str]:
+def get_folders_last_months(base_path: str, n_months: int) -> list[str]:
     """
-    Seleziona le cartelle degli ultimi 4 mesi rispetto alla cartella
+    Seleziona le cartelle degli ultimi n mesi rispetto alla cartella
     con la data più recente, basandosi sul formato YYYYMMDD_YYYYMMDD.
 
     Args:
         base_path: Percorso della directory contenente le cartelle
+        n_months: Numero di mesi da considerare
 
     Returns:
-        Lista ordinata delle cartelle degli ultimi 4 mesi
+        Lista ordinata delle cartelle degli ultimi n mesi
     """
     pattern = re.compile(r'^\d{8}_\d{8}$')
 
@@ -66,8 +67,8 @@ def get_folders_last_4_months(base_path: str) -> list[str]:
     # --- 2. Trova la data più recente tra tutte le cartelle ---
     most_recent_date = max(date_end for _, _, date_end in valid_folders)
 
-    # --- 3. Calcola la cutoff: 4 mesi prima della data più recente ---
-    month = most_recent_date.month - 4
+    # --- 3. Calcola la cutoff: n mesi prima della data più recente ---
+    month = most_recent_date.month - n_months
     year  = most_recent_date.year
     if month <= 0:
         month += 12
@@ -75,7 +76,7 @@ def get_folders_last_4_months(base_path: str) -> list[str]:
     cutoff_date = most_recent_date.replace(year=year, month=month)
 
     print(f"Data più recente trovata : {most_recent_date.strftime('%d/%m/%Y')}")
-    print(f"Cutoff (4 mesi prima)    : {cutoff_date.strftime('%d/%m/%Y')}\n")
+    print(f"Cutoff ({n_months} mesi prima)    : {cutoff_date.strftime('%d/%m/%Y')}\n")
 
     # --- 4. Filtra le cartelle con data di fine >= cutoff ---
     selected = [
@@ -240,7 +241,7 @@ if __name__ == "__main__":
     print("Calculating vertical and east-west displacements...")
     logging.info("Calculating vertical and east-west displacements...")
     #come prendere solo i nomi dei file acquisisti gli ultimi 4 mesi?
-    list_filenames = get_folders_last_4_months(mosaic_path)
+    list_filenames = get_folders_last_months(mosaic_path,n_months=4)
 
     print(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
     logging.info(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
