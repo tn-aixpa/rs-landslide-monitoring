@@ -278,7 +278,9 @@ def mosaic(path :str,list_filenames: list) -> np.float32:
         gdal.Warp(os.path.join(asc_file_path,"mosaic.tif"),os.path.join(asc_file_path,"m.tif"),format='GTiff',
                   dstSRS='EPSG:25832', cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True)
         os.remove(os.path.join(asc_file_path,"m.tif"))
-        upload_artifact(artifact_name = "mosaic.tif", project_name=project_name, src_path=os.path.join(asc_file_path,"mosaic.tif"), output_path=f"s3://{project_name}/{asc_file_path}/mosaic.tif") #chiedere se e' possibile creare un artifact con un path specifico all'interno del progetto, in modo da non avere tutti i mosaici nella root del progetto
+        shutil.rmtree(os.path.join(asc_file_path,"IW1"))
+        shutil.rmtree(os.path.join(asc_file_path,"IW2"))
+
         filename_iw1 = [os.path.join(desc_file_path,"IW1",fi) for fi in os.listdir(os.path.join(desc_file_path,"IW1")) if ".tif" in fi][0]
         filename_iw2 = [os.path.join(desc_file_path,"IW2",fi) for fi in os.listdir(os.path.join(desc_file_path,"IW2")) if ".tif" in fi][0]
         list_files = " ".join([filename_iw1, filename_iw2])
@@ -286,8 +288,9 @@ def mosaic(path :str,list_filenames: list) -> np.float32:
         gdal.Warp(os.path.join(desc_file_path,"mosaic.tif"),os.path.join(desc_file_path,"m.tif"),format='GTiff',
                   dstSRS='EPSG:25832', cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True)
         os.remove(os.path.join(desc_file_path,"m.tif"))
-        upload_artifact(artifact_name = "mosaic.tif", project_name=project_name, src_path=os.path.join(desc_file_path,"mosaic.tif"), output_path=f"s3://{project_name}/{desc_file_path}/mosaic.tif") #chiedere se e' possibile creare un artifact con un path specifico all'interno del progetto, in modo da non avere tutti i mosaici nella root del progetto
-        
+        shutil.rmtree(os.path.join(desc_file_path,"IW1"))
+        shutil.rmtree(os.path.join(desc_file_path,"IW2"))
+
 if __name__ == "__main__":
 
     global output_path, unwrap_folder,trentino_boundary_path,geo_wkt
@@ -320,6 +323,7 @@ if __name__ == "__main__":
     unwrap_folder = os.path.join(tempfile.tempdir, phase_wrapping_folder)
     trentino_boundary_folder = os.path.join(data_path, 'shape')
     input_map_folder = os.path.join(data_path,'maps')
+    previous_artifact_folder = os.path.join(data_path, 'previous_artifact')
     
     # create data folders
     if not os.path.exists(data_path):
@@ -341,6 +345,8 @@ if __name__ == "__main__":
     # create input map folder
     if not os.path.exists(input_map_folder):
         os.makedirs(input_map_folder)
+    if not os.path.exists(previous_artifact_folder):
+        os.makedirs(previous_artifact_folder)
 
     print(f"Parametri in input: s1_ascending={s1_a}, s1_descending={s1_d}, output_artifact_name={output_artifact_name}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}, mapArtifact={mapArtifact}")
     logging.info(f"Parametri in input: s1_ascending={s1_a}, s1_descending={s1_d}, output_artifact_name={output_artifact_name}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}, mapArtifact={mapArtifact}")
@@ -364,6 +370,11 @@ if __name__ == "__main__":
     shape = project.get_artifact(shapeArtifact)
     trentino_boundary_folder = shape.download(trentino_boundary_folder, overwrite=True)
     trentino_boundary_path = os.path.join(trentino_boundary_folder, shapeFileName)
+    if len(dh.list_artifacts(project_name=project_name, artifact_name="mosaics")) > 0:
+        print(f"Scaricamento artefatto mosaics precedente dentro {previous_artifact_folder}")
+        logging.info(f"Scaricamento artefatto mosaics precedente dentro {previous_artifact_folder}")
+        previous_artifact = project.get_artifact("mosaics")
+        previous_artifact_path = previous_artifact.download(previous_artifact_folder, overwrite=True)
     print("Dati scaricati con successo.")   
     logging.info("Dati scaricati con successo.")
 
@@ -515,7 +526,7 @@ if __name__ == "__main__":
     with open(f"{data_path}/theta_values.json", "w") as f:
         json.dump(theta_dict, f)
     #salvataggio file JSON come artifact
-    upload_artifact(artifact_name="theta_values.json",project_name=project_name,src_path=f"{data_path}/theta_values.json")
+    upload_artifact(artifact_name="theta_values",project_name=project_name,src_path=f"{data_path}/theta_values.json")
     print("Interferometria completata per tutte le coppie di immagini. Calcolo dei mosaici.")
     logging.info("Interferometria completata per tutte le coppie di immagini. Calcolo dei mosaici.")
     # Step 2. // To create mosaics of the displacement and coherence maps starting from the interferometric results
@@ -529,3 +540,12 @@ if __name__ == "__main__":
     mosaic(result_path, list_filenames)
     print("Mosaici creati con successo per tutte le coppie di immagini.")
     logging.info("Mosaici creati con successo per tutte le coppie di immagini.")
+    if len(os.listdir(previous_artifact_path)) == 0:
+        upload_artifact(artifact_name = "mosaics", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
+    else:
+        print(f"Artifact 'mosaics' already exists in project '{project_name}'. Updating the artifact with new data.")
+        logging.info(f"Artifact 'mosaics' already exists in project '{project_name}'. Updating the artifact with new data.")
+        shutil.copytree(previous_artifact_path, result_path, dirs_exist_ok=True)
+        upload_artifact(artifact_name = "mosaics", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}", overwrite=True)
+    print(f"Mosaics uploaded successfully as artifact: mosaics")
+    logging.info(f"Mosaics uploaded successfully as artifact: mosaics")
