@@ -546,6 +546,6 @@ if __name__ == "__main__":
         print(f"Artifact 'mosaics' already exists in project '{project_name}'. Updating the artifact with new data.")
         logging.info(f"Artifact 'mosaics' already exists in project '{project_name}'. Updating the artifact with new data.")
         shutil.copytree(previous_artifact_path, result_path, dirs_exist_ok=True)
-        upload_artifact(artifact_name = "mosaics", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}", overwrite=True)
+        upload_artifact(artifact_name = "mosaics", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
     print(f"Mosaics uploaded successfully as artifact: mosaics")
     logging.info(f"Mosaics uploaded successfully as artifact: mosaics")
