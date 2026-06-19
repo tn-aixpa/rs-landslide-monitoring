@@ -119,219 +119,73 @@ if __name__ == "__main__":
     json_input = json.loads(args)
     maindir = '.'
     data_folder = 'data'
+    mosaic_folder = 'mosaics'
     temp_folder = 'tmp'
     output_folder = 'output'
     input_folder = 'input'
     phase_wrapping_folder = 'phase_unwrapping'
 
     # read input parameters
-    s1_a = json_input['s1_ascending'] # sentinel-1 ascending data artifact name (e.g., 's1_ascending')
-    s1_d = json_input['s1_descending'] # sentinel-1 descending data artifact name (e.g., 's1_descending')
-    startDate = json_input['startDate'] # start date (e.g., '2021-03-01')
-    endDate = json_input['endDate'] # end date (e.g., '2021-03-30')
+    mosaic_artifact = json_input.get('mosaicArtifactName') #mosaic artifact name (e.g., 'mosaics')
     output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
-    shapeArtifact = json_input.get('shapeArtifactName') 
-    shapeFileName = json_input.get('shapeFileName')
     mapArtifact = json_input.get('mapArtifactName')
-    geo_wkt = json_input['geomWKT'] # AOI geometry in WKT format
     
     project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
     
     # define paths
     data_path = os.path.join(maindir, data_folder, input_folder)
+    mosaic_path = os.path.join(data_path, mosaic_folder)
     result_path = os.path.join(maindir, data_folder, output_folder)
-    data_ascending_folder = os.path.join(data_path, 'ascending')
-    data_descending_folder = os.path.join(data_path, 'descending')
-    tempfile.tempdir = os.path.join(data_path, temp_folder)
-    unwrap_folder = os.path.join(tempfile.tempdir, phase_wrapping_folder)
-    trentino_boundary_folder = os.path.join(data_path, 'shape')
     input_map_folder = os.path.join(data_path,'maps')
     
     # create data folders
     if not os.path.exists(data_path):
         os.makedirs(data_path)  
-    # create ascending and descending data folders
-    if not os.path.exists(data_ascending_folder):
-        os.makedirs(data_ascending_folder)   
-    if not os.path.exists(data_descending_folder):
-        os.makedirs(data_descending_folder)
-    # create temp directory
-    if (not os.path.exists(tempfile.tempdir)):
-        os.makedirs(tempfile.tempdir)
     # create result folder
     if not os.path.exists(result_path):
         os.makedirs(result_path)
-    # create shape folder
-    if not os.path.exists(trentino_boundary_folder):
-        os.makedirs(trentino_boundary_folder)
     # create input map folder
     if not os.path.exists(input_map_folder):
         os.makedirs(input_map_folder)
 
-    print(f"Input parameters: s1_ascending={s1_a}, s1_descending={s1_d}, startDate={startDate}, endDate={endDate}, output_artifact_name={output_artifact_name}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}, mapArtifact={mapArtifact}, geo_wkt={geo_wkt}")
+    print(f"Input parameters: mosaic_artifact={mosaic_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}")
+    logging.info(f"Input parameters: mosaic_artifact={mosaic_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}")
     # download data
     project = dh.get_or_create_project(project_name)
     print(f"Downloading artifacts for project: {project_name}")
+    logging.info(f"Downloading artifacts for project: {project_name}")
     # download s1 ascending data
-    print(f"Downloading artifact: {s1_a} inside {data_ascending_folder}")  
-    data_s1a = project.get_artifact(s1_a)
-    input_path_ascending = data_s1a.download(data_ascending_folder, overwrite=True)
-    # download s1 descending data
-    print(f"Downloading artifact: {s1_d} inside {data_descending_folder}")
-    data_s1d = project.get_artifact(s1_d)
-    input_path_descending = data_s1d.download(data_descending_folder, overwrite=True)
-    # download shape file if provided
-    print(f"Downloading shape artifact: {shapeArtifact} inside {trentino_boundary_folder}")
-    shape = project.get_artifact(shapeArtifact)
-    trentino_boundary_folder = shape.download(trentino_boundary_folder, overwrite=True)
-    trentino_boundary_path = os.path.join(trentino_boundary_folder, shapeFileName)
+    print(f"Downloading artifact: {mosaic_artifact} inside {mosaic_path}")  
+    logging.info(f"Downloading artifact: {mosaic_artifact} inside {mosaic_path}")
+    data_s1a = project.get_artifact(mosaic_artifact)
+    input_path_ascending = data_s1a.download(mosaic_path, overwrite=True)
     # download map files if provided
     print(f"Downloading map artifact: {mapArtifact} inside {input_map_folder}")
+    logging.info(f"Downloading map artifact: {mapArtifact} inside {input_map_folder}")
     map_data = project.get_artifact(mapArtifact)
     input_map_folder = map_data.download(input_map_folder, overwrite=True)    
     trentino_slope_map_path = os.path.join(input_map_folder,'trentino_slope_map.tif')
     trentino_aspect_map_path = os.path.join(input_map_folder,'trentino_aspect_map.tif')
     legend_path = os.path.join(input_map_folder,'legend.qml')
     print("Data downloaded successfully.")   
+    logging.info("Data downloaded successfully.")
 
-    print(f"input_path_ascending = {data_ascending_folder}")
-    print(f"input_path_descending = {data_descending_folder}")
-    print(f"tempfile.tempdir = {tempfile.tempdir}")
-    print(f"unwrap_folder = {unwrap_folder}")
-    print(f"trentino_boundary_path = {trentino_boundary_path}")
+    print(f"mosaic_path = {mosaic_path}")
     print(f"trentino_slope_map_path = {trentino_slope_map_path}")
     print(f"trentino_aspect_map_path = {trentino_aspect_map_path}")
     print(f"legend_path = {legend_path}")
     
-    # Step 1. // To calculate the interferometric data between the ascending and descending images
-    # The interferometric data is calculated between the ascending and descending images, 
-    # and the results are stored in the output_path directory.
-    print("Step 1: Calculating interferometric data...")
-
-    # input_path_ascending = data_ascending_folder
-    # input_path_descending = data_descending_folder
-        
-    list_files_ascending = [f for f in os.listdir(input_path_ascending) if ".zip" in f]
-    print(f"list_files_ascending: {list_files_ascending}")
-    list_files_descending = [f for f in os.listdir(input_path_descending) if ".zip" in f]
-    print(f"list_files_descending: {list_files_descending}")
-    list_dates_ascending = [f[17:25] for f in list_files_ascending]
-    list_dates_descending = [f[17:25] for f in list_files_descending]
-    sorted_indeces_ascending = sorted(range(len(list_dates_ascending)), key=list_dates_ascending.__getitem__)
-    sorted_indeces_descending = sorted(range(len(list_dates_descending)), key=list_dates_descending.__getitem__)
-    list_theta_ascending = []
-    list_theta_descending = []
-    if len(list_files_ascending) != len(list_files_descending) and abs(len(list_files_ascending) - len(list_files_descending)) < 2:
-        warnings.warn("The number of ascending and descending images is different. The minimum number of images will be used.")
-    elif abs(len(list_files_ascending) - len(list_files_descending)) >= 2:
-        warnings.warn("The number of images in the ascending and descending image time series is very different. This could badly affect the interferometry. Please check the input data.")
-    n_images = min(len(list_files_ascending),len(list_files_descending))
-    for i in range(1,n_images,1):
-        filename_ascending1 = list_files_ascending[sorted_indeces_ascending[i-1]]
-        filename_ascending2 = list_files_ascending[sorted_indeces_ascending[i]]
-        filename_descending1 = list_files_descending[sorted_indeces_descending[i-1]]
-        filename_descending2 = list_files_descending[sorted_indeces_descending[i]]
-        date_descending1 = list_dates_descending[sorted_indeces_descending[i-1]]
-        date_descending2 = list_dates_descending[sorted_indeces_descending[i]]
-        date_ascending1 = list_dates_ascending[sorted_indeces_ascending[i-1]]
-        date_ascending2 = list_dates_ascending[sorted_indeces_ascending[i]]
-        if date_descending1<date_ascending1:
-            output_path = "{}-{}".format(date_descending1,
-                                         date_ascending2)
-        elif date_ascending1<date_descending1:
-            output_path = "{}-{}".format(date_ascending1,
-                                         date_descending2)
-        output_path_ascending = os.path.join(result_path, output_path, "ascending")
-        output_path_descending = os.path.join(result_path, output_path, "descending")
-     
-        # Check if the zip files are valid
-        try:
-            archive1 = zipfile.ZipFile(os.path.join(input_path_ascending, filename_ascending1), 'r')
-        except zipfile.BadZipFile:
-            print(f"Warning: {filename_ascending1} is a bad zip file. Skipping this iteration.")
-            continue
-        archive1.close()
-        try:
-            archive1 = zipfile.ZipFile(os.path.join(input_path_ascending, filename_ascending2), 'r')
-        except zipfile.BadZipFile:
-            print(f"Warning: {filename_ascending2} is a bad zip file. Skipping this iteration.")
-            continue
-        archive1.close()
-        try:
-            archive1 = zipfile.ZipFile(os.path.join(input_path_descending, filename_descending1), 'r')
-        except zipfile.BadZipFile:
-            print(f"Warning: {filename_descending1} is a bad zip file. Skipping this iteration.")
-            continue
-        archive1.close()
-        try:
-            archive1 = zipfile.ZipFile(os.path.join(input_path_descending, filename_descending2), 'r')
-        except zipfile.BadZipFile:
-            print(f"Warning: {filename_descending2} is a bad zip file. Skipping this iteration.")
-            continue
-        archive1.close()
-    
-        print(f"output_path = {output_path}")
-        print(f"output_path_ascending = {output_path_ascending}")
-        print(f"output_path_descending = {output_path_descending}")
-        
-        if not os.path.isdir(output_path_ascending):
-            os.makedirs(output_path_ascending)
-        if not os.path.isdir(output_path_descending):
-            os.makedirs(output_path_descending)
-        
-        print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
-        # tetha_descending_iw1 = interferometry(input_path_descending, filename_descending1, filename_descending2, 
-        #                               output_path_descending,subswath='IW1')#east
-        tetha_descending_iw2 = interferometry(input_path_descending, filename_descending1, filename_descending2, 
-                             output_path_descending,subswath='IW2')#west
-        # if tetha_descending_iw1!=9999.0:
-        #     tetha_descending = tetha_descending_iw1
-        if tetha_descending_iw2!=9999.0:
-            tetha_descending = tetha_descending_iw2
-        else:
-            tetha_descending = 9999.0
-
-        if tetha_descending!=9999.0:
-            list_theta_descending.append(tetha_descending)
-            print("Platform heading angle descending: {}".format(tetha_descending))
-        print("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
-        if tetha_descending_iw2!=9999.0:
-            tetha_ascending_iw1 = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
-                                        output_path_ascending,subswath='IW1')#west
-        else:
-            print("Skipping ascending IW1 interferometry computation due to failure in descending IW2 interferometry.")
-            tetha_ascending_iw1 = 9999.0
-        # if tetha_descending_iw1!=9999.0:
-            # tetha_ascending_iw2 = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
-            #                      output_path_ascending,subswath='IW2')#east
-        # else:
-            # print("Skipping ascending IW2 interferometry computation due to failure in descending IW1 interferometry.")
-            # tetha_ascending_iw2 = 9999.0
-        
-        if tetha_ascending_iw1!=9999.0:
-            tetha_ascending = tetha_ascending_iw1
-        # elif tetha_ascending_iw2!=9999.0:
-            # tetha_ascending = tetha_ascending_iw2
-        else:
-            tetha_ascending = 9999.0
-        
-        if tetha_ascending!=9999.0:
-            list_theta_ascending.append(tetha_ascending)
-            print("Platform heading angle ascending: {}".format(tetha_ascending))
-
-    # Upload the result artifact
-    # print(f"Uploading Interferometric results to DigitalHub artifact")
-    # (artifact_name='interferometry',project_name=project_name,src_path=output_path_folder)
-    
     # Step 2. // To calculate the vertical and east-west displacements from the interferometric data
     # The vertical and east-west displacements are calculated from the interferometric data,
     # and the results are stored in the output_path directory.
-    print("Step 2: Calculating vertical and east-west displacements...")
-    list_filenames = [f for f in os.listdir(result_path) if os.path.isdir(os.path.join(result_path, f))] # which list is this??
+    print("Calculating vertical and east-west displacements...")
+    logging.info("Calculating vertical and east-west displacements...")
+    list_filenames = [f for f in os.listdir(mosaic_path) if os.path.isdir(os.path.join(mosaic_path, f))] # which list is this??
 
-    print(f"Found {len(list_filenames)} subdirectories in {result_path}")
+    print(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
+    logging.info(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
     #calculate the vertical and east-west displacements
-    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT, inc_angle_asc, inc_angle_desc= v_ew_displ(result_path, list_filenames)
+    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT, inc_angle_asc, inc_angle_desc= v_ew_displ(mosaic_path, list_filenames)
     #keep only the interferometry maps with a mean coherence value higher than 0.3
     mean_coh = np.average(coh_maps,axis=(0,1))
     th = 0.3
