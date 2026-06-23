@@ -75,8 +75,8 @@ def get_folders_last_months(base_path: str, n_months: int) -> list[str]:
         year  -= 1
     cutoff_date = most_recent_date.replace(year=year, month=month)
 
-    print(f"Data più recente trovata : {most_recent_date.strftime('%d/%m/%Y')}")
-    print(f"Cutoff ({n_months} mesi prima)    : {cutoff_date.strftime('%d/%m/%Y')}\n")
+    print(f"Data più recente trovata: {most_recent_date.strftime('%d/%m/%Y')}")
+    print(f"Cutoff ({n_months} mesi prima): {cutoff_date.strftime('%d/%m/%Y')}\n")
 
     # --- 4. Filtra le cartelle con data di fine >= cutoff ---
     selected = [
@@ -189,6 +189,7 @@ if __name__ == "__main__":
     mosaic_artifact = json_input.get('mosaicArtifactName') #mosaic artifact name (e.g., 'mosaics')
     output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
     mapArtifact = json_input.get('mapArtifactName')
+    theta_artifact = json_input.get('thetaArtifactName')
     
     project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
     
@@ -197,6 +198,7 @@ if __name__ == "__main__":
     mosaic_path = os.path.join(data_path, mosaic_folder)
     result_path = os.path.join(maindir, data_folder, output_folder)
     input_map_folder = os.path.join(data_path,'maps')
+    input_json_folder = os.path.join(data_path,'json')
     
     # create data folders
     if not os.path.exists(data_path):
@@ -207,9 +209,12 @@ if __name__ == "__main__":
     # create input map folder
     if not os.path.exists(input_map_folder):
         os.makedirs(input_map_folder)
+    # create input json folder
+    if not os.path.exists(input_json_folder):
+        os.makedirs(input_json_folder)
 
-    print(f"Input parameters: mosaic_artifact={mosaic_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}")
-    logging.info(f"Input parameters: mosaic_artifact={mosaic_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}")
+    print(f"Input parameters: mosaic_artifact={mosaic_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}, thetaArtifact={theta_artifact}")
+    logging.info(f"Input parameters: mosaic_artifact={mosaic_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}, thetaArtifact={theta_artifact}")
     # download data
     project = dh.get_or_create_project(project_name)
     print(f"Downloading artifacts for project: {project_name}")
@@ -227,6 +232,10 @@ if __name__ == "__main__":
     trentino_slope_map_path = os.path.join(input_map_folder,'trentino_slope_map.tif')
     trentino_aspect_map_path = os.path.join(input_map_folder,'trentino_aspect_map.tif')
     legend_path = os.path.join(input_map_folder,'legend.qml')
+    print(f"Downloading theta artifact: {theta_artifact} inside {input_json_folder}")
+    logging.info(f"Downloading theta artifact: {theta_artifact} inside {input_json_folder}")
+    theta_data = project.get_artifact(theta_artifact)
+    input_json_folder = theta_data.download(input_json_folder, overwrite=True)
     print("Data downloaded successfully.")   
     logging.info("Data downloaded successfully.")
 
@@ -234,6 +243,11 @@ if __name__ == "__main__":
     print(f"trentino_slope_map_path = {trentino_slope_map_path}")
     print(f"trentino_aspect_map_path = {trentino_aspect_map_path}")
     print(f"legend_path = {legend_path}")
+
+    with open(input_json_folder, "r") as f:
+        theta_dict = json.load(f)
+    list_theta_ascending = theta_dict["ascending"]
+    list_theta_descending = theta_dict["descending"]
     
     # Step 2. // To calculate the vertical and east-west displacements from the interferometric data
     # The vertical and east-west displacements are calculated from the interferometric data,
@@ -242,6 +256,8 @@ if __name__ == "__main__":
     logging.info("Calculating vertical and east-west displacements...")
     #come prendere solo i nomi dei file acquisisti gli ultimi 4 mesi?
     list_filenames = get_folders_last_months(mosaic_path,n_months=4)
+    list_theta_ascending = list_theta_ascending[-len(list_filenames):]
+    list_theta_descending = list_theta_descending[-len(list_filenames):]
 
     print(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
     logging.info(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
@@ -265,16 +281,15 @@ if __name__ == "__main__":
     v_displ_maps -= offset_v_displ_maps
     asc -= offset_asc
     desc -= offset_desc
-    keep_img_mask = np.logical_and(np.logical_and(np.max(ew_displ_maps,axis=(0,1))<1,
-                                  np.min(ew_displ_maps,axis=(0,1))>-1),mean_coh>=th)
+    keep_img_mask = np.logical_and(mean_coh>=th)#(np.logical_and(np.max(ew_displ_maps,axis=(0,1))<1,
+                                  #np.min(ew_displ_maps,axis=(0,1))>-1),mean_coh>=th)
     if np.sum(keep_img_mask)==0:
         warnings.warn("No interferogram with mean coherence higher than {}. Skipping generation of tiff files for data insufficiency.".format(th))
+        logging.warning("No interferogram with mean coherence higher than {}. Skipping generation of tiff files for data insufficiency.".format(th))
     else:
         keep_list_filenames = [list_filenames[i] for i in range(len(list_filenames)) if keep_img_mask[i]]
         keep_list_tetha_ascending = [list_theta_ascending[i] for i in range(len(list_theta_ascending)) if keep_img_mask[i]]
-        # keep_list_alpha_ascending = [list_alpha_ascending[i] for i in range(len(list_alpha_ascending)) if keep_img_mask[i]]
         keep_list_tetha_descending = [list_theta_descending[i] for i in range(len(list_theta_descending)) if keep_img_mask[i]]
-        # keep_list_alpha_descending = [list_alpha_descending[i] for i in range(len(list_alpha_descending)) if keep_img_mask[i]]
 
         v_displ_maps = v_displ_maps[:,:,keep_img_mask]
         ew_displ_maps = ew_displ_maps[:,:,keep_img_mask]
@@ -315,21 +330,10 @@ if __name__ == "__main__":
         cum_sum_v_displ_map_AOI = np.copy(cum_sum_v_displ_map)
         cum_sum_v_displ_map_AOI[np.logical_not(mask_AOI)] = np.nan
 
-        geometry = loads(geo_wkt)
-        aoi = gpd.GeoDataFrame(geometry=[geometry],crs="EPSG:4326")
-        aoi = aoi.to_crs(25832)
-        bounds = aoi.total_bounds
-        window = (bounds[0], bounds[3], bounds[2], bounds[1])
-        ds_trans = gdal.Translate(trentino_slope_map_path[:-4]+'_clip.tif', 
-                                    trentino_slope_map_path, width = inc_angle_asc[:,:,0].shape[1],
-                                    height = inc_angle_asc[:,:,0].shape[0], resampleAlg = 'bilinear',
-                                    projWin = window, projWinSRS = "EPSG:25832")
+        ds_trans = gdal.Open(trentino_slope_map_path,gdal.GA_ReadOnly)
         slope_map = ds_trans.GetRasterBand(1).ReadAsArray()
         ds_trans = None
-        ds_trans = gdal.Translate(trentino_aspect_map_path[:-4]+'_clip.tif', 
-                                    trentino_aspect_map_path, width = inc_angle_asc[:,:,0].shape[1],
-                                    height = inc_angle_asc[:,:,0].shape[0], resampleAlg = 'bilinear',
-                                    projWin = window, projWinSRS = "EPSG:25832")
+        ds_trans = gdal.Open(trentino_aspect_map_path,gdal.GA_ReadOnly)
         aspect_map = ds_trans.GetRasterBand(1).ReadAsArray()
         ds_trans = None
         #compute the c coefficient in ascending and descending

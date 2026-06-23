@@ -375,6 +375,12 @@ if __name__ == "__main__":
         logging.info(f"Scaricamento artefatto mosaics precedente dentro {previous_artifact_folder}")
         previous_artifact = project.get_artifact("mosaics")
         previous_artifact_path = previous_artifact.download(previous_artifact_folder, overwrite=True)
+    input_json_folder = ""
+    if len(dh.list_artifacts(project_name=project_name, artifact_name="theta_values")) > 0:
+        print(f"Scaricamento artefatto theta_values dentro {data_path}")
+        logging.info(f"Scaricamento artefatto theta_values dentro {data_path}")
+        theta_artifact = project.get_artifact("theta_values")
+        input_json_folder = theta_artifact.download(data_path, overwrite=True)
     print("Dati scaricati con successo.")   
     logging.info("Dati scaricati con successo.")
 
@@ -522,9 +528,17 @@ if __name__ == "__main__":
             print("Platform heading angle ascending: {}".format(tetha_ascending))
     
     #salvataggio dei tetha ascending e descending in un file di JSON
-    theta_dict = {"ascending": list_theta_ascending, "descending": list_theta_descending}
-    with open(f"{data_path}/theta_values.json", "w") as f:
-        json.dump(theta_dict, f)
+    if input_json_folder == "":
+        theta_dict = {"ascending": list_theta_ascending, "descending": list_theta_descending}
+        with open(f"{data_path}/theta_values.json", "w") as f:
+            json.dump(theta_dict, f)
+    else:
+        with open(input_json_folder, "r") as f:
+            existing_theta_dict = json.load(f)
+        existing_theta_dict["ascending"].extend(list_theta_ascending)
+        existing_theta_dict["descending"].extend(list_theta_descending)
+        with open(f"{data_path}/theta_values.json", "w") as f:
+            json.dump(existing_theta_dict, f)
     #salvataggio file JSON come artifact
     upload_artifact(artifact_name="theta_values",project_name=project_name,src_path=f"{data_path}/theta_values.json")
     print("Interferometria completata per tutte le coppie di immagini. Calcolo dei mosaici.")
