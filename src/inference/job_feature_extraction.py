@@ -236,6 +236,16 @@ if __name__ == "__main__":
     logging.info(f"Downloading theta artifact: {theta_artifact} inside {input_json_folder}")
     theta_data = project.get_artifact(theta_artifact)
     input_json_folder = theta_data.download(input_json_folder, overwrite=True)
+
+    if len(dh.list_artifacts(project_name=project_name, artifact_name="serie_temporale_scostamento_verticale")) > 0:
+        print(f"Downloading previous artifact: serie_temporale_scostamento_verticale inside {result_path}")
+        logging.info(f"Downloading previous artifact: serie_temporale_scostamento_verticale inside {result_path}")
+        previous_artifact = project.get_artifact("serie_temporale_scostamento_verticale")
+        ts_vert_displ_path = previous_artifact.download(result_path, overwrite=True)
+    else:
+        ts_vert_displ_path = os.path.join(result_path,"serie_temporale_scostamento_verticale")
+        os.makedirs(ts_vert_displ_path, exist_ok=True)
+
     print("Data downloaded successfully.")   
     logging.info("Data downloaded successfully.")
 
@@ -258,6 +268,8 @@ if __name__ == "__main__":
     list_filenames = get_folders_last_months(mosaic_path,n_months=4)
     list_theta_ascending = list_theta_ascending[-len(list_filenames):]
     list_theta_descending = list_theta_descending[-len(list_filenames):]
+    starting_date = list_filenames[0].split("_")[0]
+    ending_date = list_filenames[-1].split("_")[1]
 
     print(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
     logging.info(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
@@ -356,7 +368,7 @@ if __name__ == "__main__":
             c_descending_time_series[:,:,i_c] = np.copy(c)
 
         #save the stacked masked vertical displacement maps
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_verticale.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(ts_vert_displ_path,f'{starting_date}_{ending_date}.tif'), 
                                         masked_v_displ_maps.shape[1], masked_v_displ_maps.shape[0], masked_v_displ_maps.shape[2], gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -367,6 +379,7 @@ if __name__ == "__main__":
             target_ds.GetRasterBand(i+1).WriteArray(masked_v_displ_maps[:,:,i])
         target_ds = None
         gc.collect()
+        upload_artifact(artifact_name = "serie_temporale_scostamento_verticale", project_name = project_name, src_path = ts_vert_displ_path, output_path = f"s3://{project_name}")
         
         #save the masked cumulative vertical displacement maps
         target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_verticale.tif'), 
