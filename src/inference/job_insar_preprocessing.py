@@ -370,6 +370,7 @@ if __name__ == "__main__":
     shape = project.get_artifact(shapeArtifact)
     trentino_boundary_folder = shape.download(trentino_boundary_folder, overwrite=True)
     trentino_boundary_path = os.path.join(trentino_boundary_folder, shapeFileName)
+    previous_artifact_path = ""
     if len(dh.list_artifacts(project_name=project_name, artifact_name="mosaics")) > 0:
         print(f"Scaricamento artefatto mosaics precedente dentro {previous_artifact_folder}")
         logging.info(f"Scaricamento artefatto mosaics precedente dentro {previous_artifact_folder}")
@@ -554,7 +555,7 @@ if __name__ == "__main__":
     mosaic(result_path, list_filenames)
     print("Mosaici creati con successo per tutte le coppie di immagini.")
     logging.info("Mosaici creati con successo per tutte le coppie di immagini.")
-    if len(os.listdir(previous_artifact_path)) == 0:
+    if len(os.listdir(previous_artifact_path)) == "":
         upload_artifact(artifact_name = "mosaics", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
     else:
         print(f"Artifact 'mosaics' already exists in project '{project_name}'. Updating the artifact with new data.")
