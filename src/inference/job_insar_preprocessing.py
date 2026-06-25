@@ -275,7 +275,7 @@ def mosaic(path :str,list_filenames: list) -> np.float32:
         filename_iw2 = [os.path.join(asc_file_path,"IW2",fi) for fi in os.listdir(os.path.join(asc_file_path,"IW2")) if ".tif" in fi][0]
         list_files = " ".join([filename_iw1, filename_iw2])
         subprocess.check_output("python ../core/raster_utils.py -o "+os.path.join(asc_file_path,"m.tif")+" -n 0.0 -ot Float32 -of GTiff "+list_files, shell=True)
-        gdal.Warp(os.path.join(asc_file_path,"mosaic.tif"),os.path.join(asc_file_path,"m.tif"),format='GTiff',
+        gdal.Warp(os.path.join(asc_file_path,"coherence_displacement.tif"),os.path.join(asc_file_path,"m.tif"),format='GTiff',
                   dstSRS='EPSG:25832', cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True)
         os.remove(os.path.join(asc_file_path,"m.tif"))
         shutil.rmtree(os.path.join(asc_file_path,"IW1"))
@@ -285,7 +285,7 @@ def mosaic(path :str,list_filenames: list) -> np.float32:
         filename_iw2 = [os.path.join(desc_file_path,"IW2",fi) for fi in os.listdir(os.path.join(desc_file_path,"IW2")) if ".tif" in fi][0]
         list_files = " ".join([filename_iw1, filename_iw2])
         subprocess.check_output("python ../core/raster_utils.py -o "+os.path.join(desc_file_path,"m.tif")+" -n 0.0 -ot Float32 -of GTiff "+list_files, shell=True)
-        gdal.Warp(os.path.join(desc_file_path,"mosaic.tif"),os.path.join(desc_file_path,"m.tif"),format='GTiff',
+        gdal.Warp(os.path.join(desc_file_path,"coherence_displacement.tif"),os.path.join(desc_file_path,"m.tif"),format='GTiff',
                   dstSRS='EPSG:25832', cutlineDSName=trentino_boundary_path,cutlineLayer='ammprv_v',cropToCutline=True)
         os.remove(os.path.join(desc_file_path,"m.tif"))
         shutil.rmtree(os.path.join(desc_file_path,"IW1"))
@@ -371,17 +371,14 @@ if __name__ == "__main__":
     trentino_boundary_folder = shape.download(trentino_boundary_folder, overwrite=True)
     trentino_boundary_path = os.path.join(trentino_boundary_folder, shapeFileName)
     previous_artifact_path = ""
-    if len(dh.list_artifacts(project_name=project_name, artifact_name="mosaics")) > 0:
-        print(f"Scaricamento artefatto mosaics precedente dentro {previous_artifact_folder}")
-        logging.info(f"Scaricamento artefatto mosaics precedente dentro {previous_artifact_folder}")
-        previous_artifact = project.get_artifact("mosaics")
+    input_json_path = ""
+    if len(dh.list_artifacts(project_name=project_name, artifact_name="02_pre_processed")) > 0:
+        print(f"Scaricamento artefatto 02_pre_processed precedente dentro {previous_artifact_folder}")
+        logging.info(f"Scaricamento artefatto 02_pre_processed precedente dentro {previous_artifact_folder}")
+        previous_artifact = project.get_artifact("02_pre_processed")
         previous_artifact_path = previous_artifact.download(previous_artifact_folder, overwrite=True)
-    input_json_folder = ""
-    if len(dh.list_artifacts(project_name=project_name, artifact_name="theta_values")) > 0:
-        print(f"Scaricamento artefatto theta_values dentro {data_path}")
-        logging.info(f"Scaricamento artefatto theta_values dentro {data_path}")
-        theta_artifact = project.get_artifact("theta_values")
-        input_json_folder = theta_artifact.download(data_path, overwrite=True)
+        input_json_path = os.path.join(previous_artifact_path, "sensor_angles.json")
+
     print("Dati scaricati con successo.")   
     logging.info("Dati scaricati con successo.")
 
@@ -529,19 +526,19 @@ if __name__ == "__main__":
             print("Platform heading angle ascending: {}".format(tetha_ascending))
     
     #salvataggio dei tetha ascending e descending in un file di JSON
-    if input_json_folder == "":
+    if input_json_path == "":
         theta_dict = {"ascending": list_theta_ascending, "descending": list_theta_descending}
-        with open(f"{data_path}/theta_values.json", "w") as f:
+        with open(f"{result_path}/sensor_angles.json", "w") as f:
             json.dump(theta_dict, f)
     else:
-        with open(input_json_folder, "r") as f:
+        with open(input_json_path, "r") as f:
             existing_theta_dict = json.load(f)
         existing_theta_dict["ascending"].extend(list_theta_ascending)
         existing_theta_dict["descending"].extend(list_theta_descending)
-        with open(f"{data_path}/theta_values.json", "w") as f:
+        with open(input_json_path, "w") as f:
             json.dump(existing_theta_dict, f)
-    #salvataggio file JSON come artifact
-    upload_artifact(artifact_name="theta_values",project_name=project_name,src_path=f"{data_path}/theta_values.json")
+    # #salvataggio file JSON come artifact
+    # upload_artifact(artifact_name="sensor_angles",project_name=project_name,src_path=f"{result_path}/sensor_angles.json")
     print("Interferometria completata per tutte le coppie di immagini. Calcolo dei mosaici.")
     logging.info("Interferometria completata per tutte le coppie di immagini. Calcolo dei mosaici.")
     # Step 2. // To create mosaics of the displacement and coherence maps starting from the interferometric results
@@ -556,11 +553,11 @@ if __name__ == "__main__":
     print("Mosaici creati con successo per tutte le coppie di immagini.")
     logging.info("Mosaici creati con successo per tutte le coppie di immagini.")
     if len(os.listdir(previous_artifact_path)) == "":
-        upload_artifact(artifact_name = "mosaics", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
+        upload_artifact(artifact_name = "02_pre_processed", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
     else:
-        print(f"Artifact 'mosaics' already exists in project '{project_name}'. Updating the artifact with new data.")
-        logging.info(f"Artifact 'mosaics' already exists in project '{project_name}'. Updating the artifact with new data.")
+        print(f"Artifact '02_pre_processed' already exists in project '{project_name}'. Updating the artifact with new data.")
+        logging.info(f"Artifact '02_pre_processed' already exists in project '{project_name}'. Updating the artifact with new data.")
         shutil.copytree(previous_artifact_path, result_path, dirs_exist_ok=True)
-        upload_artifact(artifact_name = "mosaics", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
+        upload_artifact(artifact_name = "02_pre_processed", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
     print(f"Mosaics uploaded successfully as artifact: mosaics")
     logging.info(f"Mosaics uploaded successfully as artifact: mosaics")
