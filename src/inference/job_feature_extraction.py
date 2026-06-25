@@ -562,22 +562,12 @@ if __name__ == "__main__":
 
         shutil.copy(legend_path,os.path.join(result_path, f'{starting_date}_{ending_date}', 'legend.qml'))
 
-        #upload output artifact
-        print(f"Uploading artifact: {output_artifact_name}, {output_artifact_name}")
-        zip_file = os.path.join(result_path, f'{starting_date}_{ending_date}', output_artifact_name + '.zip')
-        print(f"Creating zip file: {zip_file}")
-        zf = zipfile.ZipFile(zip_file, "w")
-        for dirname, subdirs, files in os.walk(result_path):
-            print(f"Processing directory: {dirname}")
-            for filename in files:
-                if (("somma" in filename) or 
-                    ("serie_temporale" in filename) or 
-                    ("mappa" in filename) or 
-                    filename.endswith('legend.qml')):
-                    print(f"Adding {filename} to the zip file")
-                    zf.write(os.path.join(dirname, filename), arcname=filename)
-            
-        zf.close()
-        upload_artifact(artifact_name=output_artifact_name,project_name=project_name,src_path=zip_file)
+        if len(previous_feature_artifact_path) == 0:
+            upload_artifact(artifact_name = "03_features", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
+        else:
+            print(f"Artifact 03_features already exists in project {project_name}. Updating the artifact with new data.")
+            logging.info(f"Artifact 03_features already exists in project {project_name}. Updating the artifact with new data.")
+            shutil.copytree(previous_feature_artifact_path, result_path, dirs_exist_ok=True)
+            upload_artifact(artifact_name = "03_features", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
 
     print("Processing completed.")
