@@ -552,7 +552,7 @@ if __name__ == "__main__":
     mosaic(result_path, list_filenames)
     print("Mosaici creati con successo per tutte le coppie di immagini.")
     logging.info("Mosaici creati con successo per tutte le coppie di immagini.")
-    if len(os.listdir(previous_artifact_path)) == "":
+    if len(os.listdir(previous_artifact_path)) == 0:
         upload_artifact(artifact_name = "02_pre_processed", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
     else:
         print(f"Artifact '02_pre_processed' already exists in project '{project_name}'. Updating the artifact with new data.")
