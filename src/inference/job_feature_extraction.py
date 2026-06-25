@@ -179,26 +179,25 @@ if __name__ == "__main__":
     json_input = json.loads(args)
     maindir = '.'
     data_folder = 'data'
-    mosaic_folder = 'mosaics'
+    preprocessed_folder = '02_pre_processed'
     temp_folder = 'tmp'
     output_folder = 'output'
     input_folder = 'input'
     phase_wrapping_folder = 'phase_unwrapping'
 
     # read input parameters
-    mosaic_artifact = json_input.get('mosaicArtifactName') #mosaic artifact name (e.g., 'mosaics')
+    preprocessed_artifact = json_input.get('preprocessedArtifactName') #preprocessed artifact name (e.g., '02_pre_processed')
     output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
     mapArtifact = json_input.get('mapArtifactName')
-    theta_artifact = json_input.get('thetaArtifactName')
     
     project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
     
     # define paths
     data_path = os.path.join(maindir, data_folder, input_folder)
-    mosaic_path = os.path.join(data_path, mosaic_folder)
+    preprocessed_path = os.path.join(data_path, preprocessed_folder)
+    previous_feature_artifact_path = os.path.join(data_path, 'previous_feature_artifact')
     result_path = os.path.join(maindir, data_folder, output_folder)
     input_map_folder = os.path.join(data_path,'maps')
-    input_json_folder = os.path.join(data_path,'json')
     
     # create data folders
     if not os.path.exists(data_path):
@@ -209,21 +208,20 @@ if __name__ == "__main__":
     # create input map folder
     if not os.path.exists(input_map_folder):
         os.makedirs(input_map_folder)
-    # create input json folder
-    if not os.path.exists(input_json_folder):
-        os.makedirs(input_json_folder)
+    os.makedirs(preprocessed_path, exist_ok=True)
+    os.makedirs(previous_feature_artifact_path, exist_ok=True)
 
-    print(f"Input parameters: mosaic_artifact={mosaic_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}, thetaArtifact={theta_artifact}")
-    logging.info(f"Input parameters: mosaic_artifact={mosaic_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}, thetaArtifact={theta_artifact}")
+    print(f"Input parameters: preprocessed_artifact={preprocessed_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}")
+    logging.info(f"Input parameters: preprocessed_artifact={preprocessed_artifact}, output_artifact_name={output_artifact_name}, mapArtifact={mapArtifact}")
     # download data
     project = dh.get_or_create_project(project_name)
     print(f"Downloading artifacts for project: {project_name}")
     logging.info(f"Downloading artifacts for project: {project_name}")
     # download s1 ascending data
-    print(f"Downloading artifact: {mosaic_artifact} inside {mosaic_path}")  
-    logging.info(f"Downloading artifact: {mosaic_artifact} inside {mosaic_path}")
-    data_s1a = project.get_artifact(mosaic_artifact)
-    input_path_ascending = data_s1a.download(mosaic_path, overwrite=True)
+    print(f"Downloading artifact: {preprocessed_artifact} inside {preprocessed_path}")  
+    logging.info(f"Downloading artifact: {preprocessed_artifact} inside {preprocessed_path}")
+    preprocessed_data = project.get_artifact(preprocessed_artifact)
+    input_path = preprocessed_data.download(preprocessed_path, overwrite=True)
     # download map files if provided
     print(f"Downloading map artifact: {mapArtifact} inside {input_map_folder}")
     logging.info(f"Downloading map artifact: {mapArtifact} inside {input_map_folder}")
@@ -232,29 +230,22 @@ if __name__ == "__main__":
     trentino_slope_map_path = os.path.join(input_map_folder,'trentino_slope_map.tif')
     trentino_aspect_map_path = os.path.join(input_map_folder,'trentino_aspect_map.tif')
     legend_path = os.path.join(input_map_folder,'legend.qml')
-    print(f"Downloading theta artifact: {theta_artifact} inside {input_json_folder}")
-    logging.info(f"Downloading theta artifact: {theta_artifact} inside {input_json_folder}")
-    theta_data = project.get_artifact(theta_artifact)
-    input_json_folder = theta_data.download(input_json_folder, overwrite=True)
-
-    if len(dh.list_artifacts(project_name=project_name, artifact_name="serie_temporale_scostamento_verticale")) > 0:
-        print(f"Downloading previous artifact: serie_temporale_scostamento_verticale inside {result_path}")
-        logging.info(f"Downloading previous artifact: serie_temporale_scostamento_verticale inside {result_path}")
-        previous_artifact = project.get_artifact("serie_temporale_scostamento_verticale")
-        ts_vert_displ_path = previous_artifact.download(result_path, overwrite=True)
-    else:
-        ts_vert_displ_path = os.path.join(result_path,"serie_temporale_scostamento_verticale")
-        os.makedirs(ts_vert_displ_path, exist_ok=True)
+    input_json_path = os.path.join(input_path,'sensor_angles.json')
+    if len(dh.list_artifacts(project_name=project_name, artifact_name="03_features")) > 0:
+        print(f"Downloading previous feature artifact 03_features inside {previous_feature_artifact_path}")
+        logging.info(f"Downloading previous feature artifact 03_features inside {previous_feature_artifact_path}")
+        previous_feature_artifact = project.get_artifact("03_features")
+        previous_feature_path = previous_feature_artifact.download(previous_feature_artifact_path, overwrite=True)
 
     print("Data downloaded successfully.")   
     logging.info("Data downloaded successfully.")
 
-    print(f"mosaic_path = {mosaic_path}")
+    print(f"preprocessed_path = {preprocessed_path}")
     print(f"trentino_slope_map_path = {trentino_slope_map_path}")
     print(f"trentino_aspect_map_path = {trentino_aspect_map_path}")
     print(f"legend_path = {legend_path}")
 
-    with open(input_json_folder, "r") as f:
+    with open(input_json_path, "r") as f:
         theta_dict = json.load(f)
     list_theta_ascending = theta_dict["ascending"]
     list_theta_descending = theta_dict["descending"]
@@ -265,16 +256,16 @@ if __name__ == "__main__":
     print("Calculating vertical and east-west displacements...")
     logging.info("Calculating vertical and east-west displacements...")
     #come prendere solo i nomi dei file acquisisti gli ultimi 4 mesi?
-    list_filenames = get_folders_last_months(mosaic_path,n_months=4)
+    list_filenames = get_folders_last_months(input_path,n_months=4)
     list_theta_ascending = list_theta_ascending[-len(list_filenames):]
     list_theta_descending = list_theta_descending[-len(list_filenames):]
     starting_date = list_filenames[0].split("_")[0]
     ending_date = list_filenames[-1].split("_")[1]
 
-    print(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
-    logging.info(f"Found {len(list_filenames)} subdirectories in {mosaic_path}")
+    print(f"Found {len(list_filenames)} subdirectories in {input_path}")
+    logging.info(f"Found {len(list_filenames)} subdirectories in {input_path}")
     #calculate the vertical and east-west displacements
-    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT, inc_angle_asc, inc_angle_desc= v_ew_displ(mosaic_path, list_filenames)
+    v_displ_maps, ew_displ_maps, coh_maps, asc, desc, coh_asc, coh_desc, proj, geoT, inc_angle_asc, inc_angle_desc= v_ew_displ(input_path, list_filenames)
     #keep only the interferometry maps with a mean coherence value higher than 0.3
     mean_coh = np.average(coh_maps,axis=(0,1))
     th = 0.3
@@ -368,7 +359,7 @@ if __name__ == "__main__":
             c_descending_time_series[:,:,i_c] = np.copy(c)
 
         #save the stacked masked vertical displacement maps
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(ts_vert_displ_path,f'{starting_date}_{ending_date}.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'serie_temporale_scostamento_verticale.tif'), 
                                         masked_v_displ_maps.shape[1], masked_v_displ_maps.shape[0], masked_v_displ_maps.shape[2], gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -379,10 +370,9 @@ if __name__ == "__main__":
             target_ds.GetRasterBand(i+1).WriteArray(masked_v_displ_maps[:,:,i])
         target_ds = None
         gc.collect()
-        upload_artifact(artifact_name = "serie_temporale_scostamento_verticale", project_name = project_name, src_path = ts_vert_displ_path, output_path = f"s3://{project_name}")
         
         #save the masked cumulative vertical displacement maps
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_verticale.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'somma_cumulata_spostamento_verticale.tif'), 
                                         masked_cum_sum_v_displ_map.shape[1], masked_cum_sum_v_displ_map.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -392,7 +382,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the stacked masked east-west displacement maps
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_orizzontale.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'serie_temporale_scostamento_orizzontale.tif'), 
                                         masked_ew_displ_maps.shape[1], masked_ew_displ_maps.shape[0], masked_ew_displ_maps.shape[2], gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -403,9 +393,9 @@ if __name__ == "__main__":
             target_ds.GetRasterBand(i+1).WriteArray(masked_ew_displ_maps[:,:,i])
         target_ds = None
         gc.collect()
-        
+
         #save the masked cumulative east-west displacement map
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_orizzontale.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'somma_cumulata_spostamento_orizzontale.tif'), 
                                         masked_cum_sum_ew_displ_map.shape[1], masked_cum_sum_ew_displ_map.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -415,7 +405,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the stacked masked total displacement maps ascending
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_totale_ascendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'serie_temporale_scostamento_totale_ascendente.tif'), 
                                         asc.shape[1], asc.shape[0], asc.shape[2], gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -428,7 +418,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the masked cumulative total displacement map ascending
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_totale_ascendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'somma_cumulata_scostamento_totale_ascendente.tif'), 
                                         masked_cum_sum_asc.shape[1], masked_cum_sum_asc.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -438,7 +428,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the stacked masked total displacement maps descending
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_scostamento_totale_discendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'serie_temporale_scostamento_totale_discendente.tif'), 
                                         desc.shape[1], desc.shape[0], desc.shape[2], gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -451,7 +441,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the masked cumulative total displacement map ascending
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_totale_discendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'somma_cumulata_scostamento_totale_discendente.tif'), 
                                         masked_cum_sum_desc.shape[1], masked_cum_sum_desc.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -461,7 +451,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the average coherence map
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,f'{starting_date}_{ending_date}', 'mappa_coerenza_media.tif'), 
                                         avg_coh_map.shape[1], avg_coh_map.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -471,7 +461,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the stacked coherence maps
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'serie_temporale_mappe_coerenza.tif'), 
                                         avg_coh_map.shape[1], avg_coh_map.shape[0], coh_maps.shape[2], gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -483,7 +473,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the average coherence map ascending
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media_ascendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'mappa_coerenza_media_ascendente.tif'), 
                                         avg_coh_asc.shape[1], avg_coh_asc.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -493,7 +483,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the stacked coherence maps
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza_ascendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'serie_temporale_mappe_coerenza_ascendente.tif'), 
                                         coh_asc.shape[1], coh_asc.shape[0], coh_asc.shape[2], gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -505,7 +495,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the average coherence map descending
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'mappa_coerenza_media_dscendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'mappa_coerenza_media_discendente.tif'), 
                                         avg_coh_desc.shape[1], avg_coh_desc.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -515,7 +505,7 @@ if __name__ == "__main__":
         gc.collect()
         
         #save the stacked coherence maps
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_mappe_coerenza_discendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'serie_temporale_mappe_coerenza_discendente.tif'), 
                                         coh_desc.shape[1], coh_desc.shape[0], coh_desc.shape[2], gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -527,7 +517,7 @@ if __name__ == "__main__":
         gc.collect()
 
         #save the areas of interest cumulative east-west displacement map
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_orizzontale_AOI.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'somma_cumulata_scostamento_orizzontale_AOI.tif'), 
                                         cum_sum_ew_displ_map_AOI.shape[1], cum_sum_ew_displ_map_AOI.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -537,7 +527,7 @@ if __name__ == "__main__":
         gc.collect()
 
         #save the areas of interest cumulative vertical displacement map
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'somma_cumulata_scostamento_verticale_AOI.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'somma_cumulata_scostamento_verticale_AOI.tif'), 
                                         cum_sum_v_displ_map_AOI.shape[1], cum_sum_v_displ_map_AOI.shape[0], 1, gdal.GDT_Float32,
                                         options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -547,7 +537,7 @@ if __name__ == "__main__":
         gc.collect()
 
         #save the 1/c coefficient ascending
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_coefficiente_c_ascendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'serie_temporale_coefficiente_c_ascendente.tif'), 
                                         c_ascending_time_series.shape[1], c_ascending_time_series.shape[0], c_ascending_time_series.shape[2], 
                                         gdal.GDT_Float32,options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -559,7 +549,7 @@ if __name__ == "__main__":
         gc.collect()
 
         #save the 1/c coefficient descending
-        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path,'serie_temporale_coefficiente_c_discendente.tif'), 
+        target_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(result_path, f'{starting_date}_{ending_date}', 'serie_temporale_coefficiente_c_discendente.tif'), 
                                         c_descending_time_series.shape[1], c_descending_time_series.shape[0], c_descending_time_series.shape[2], 
                                         gdal.GDT_Float32,options=['COMPRESS=DEFLATE','BIGTIFF=YES'])
         target_ds.SetGeoTransform(geoT)
@@ -570,11 +560,11 @@ if __name__ == "__main__":
         target_ds = None
         gc.collect()
 
-        shutil.copy(legend_path,os.path.join(result_path,'legend.qml'))
+        shutil.copy(legend_path,os.path.join(result_path, f'{starting_date}_{ending_date}', 'legend.qml'))
 
         #upload output artifact
         print(f"Uploading artifact: {output_artifact_name}, {output_artifact_name}")
-        zip_file = os.path.join(result_path, output_artifact_name + '.zip')
+        zip_file = os.path.join(result_path, f'{starting_date}_{ending_date}', output_artifact_name + '.zip')
         print(f"Creating zip file: {zip_file}")
         zf = zipfile.ZipFile(zip_file, "w")
         for dirname, subdirs, files in os.walk(result_path):
