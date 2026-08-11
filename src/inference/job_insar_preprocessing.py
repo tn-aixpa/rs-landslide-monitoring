@@ -244,8 +244,12 @@ UNIT[\"m\", 1.0], AXIS[\"Easting\", EAST], AXIS[\"Northing\", NORTH], AUTHORITY[
     g4.add_node(tc, node_id="terrain-correction",source='BandMerge')
     g4.add_node(Operator("Write", file=os.path.join(output_path,"interferogram_deburst_unw_disp_TC.dim")),
                 node_id="writeTC",source="terrain-correction")
-    g4.add_node(Operator("Write", formatName="GeoTIFF-BigTIFF", file=os.path.join(output_path,"interferogram_deburst_unw_disp_TC.tif")),
-                node_id="writeTCtif",source="terrain-correction")
+    if not 'interferogram_deburst_unw_disp_TC.tif' in os.listdir(output_path):
+        g4.add_node(Operator("Write", formatName="GeoTIFF-BigTIFF", file=os.path.join(output_path,"interferogram_deburst_unw_disp_TC.tif")),
+                    node_id="writeTCtif",source="terrain-correction")
+    else:
+        g4.add_node(Operator("Write", formatName="GeoTIFF-BigTIFF", file=os.path.join(output_path,"interferogram_deburst_unw_disp_TC_2.tif")),
+                    node_id="writeTCtif",source="terrain-correction")
     g4.run()
     print("Processo di calcolo dell'interferometria per il subswath {} completato con successo. File salvati in {}".format(iw, output_path))
     logging.info("Processo di calcolo dell'interferometria per il subswath {} completato con successo. File salvati in {}".format(iw, output_path))
@@ -428,8 +432,18 @@ if __name__ == "__main__":
         filename_descending2 = list_files_descending[sorted_indeces_descending[i]]
         date_descending1 = list_dates_descending[sorted_indeces_descending[i-1]]
         date_descending2 = list_dates_descending[sorted_indeces_descending[i]]
+        if date_descending1 == date_descending2 or date_descending2 == list_dates_descending[sorted_indeces_descending[i+1]]:
+            print(f"Warning: Le immagini discendenti {filename_descending1} e {filename_descending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
+            logging.warning(f"Le immagini discendenti {filename_descending1} e {filename_descending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
+            date_descending2 = list_dates_descending[sorted_indeces_descending[i+1]]
+            filename_descending2 = list_files_descending[sorted_indeces_descending[i+1]]
         date_ascending1 = list_dates_ascending[sorted_indeces_ascending[i-1]]
         date_ascending2 = list_dates_ascending[sorted_indeces_ascending[i]]
+        if date_ascending1 == date_ascending2 or date_ascending2 == list_dates_ascending[sorted_indeces_ascending[i+1]]:
+            print(f"Warning: Le immagini ascendenti {filename_ascending1} e {filename_ascending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
+            logging.warning(f"Le immagini ascendenti {filename_ascending1} e {filename_ascending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
+            date_ascending2 = list_dates_ascending[sorted_indeces_ascending[i+1]]
+            filename_ascending2 = list_files_ascending[sorted_indeces_ascending[i+1]]
         if date_descending1<date_ascending1:
             output_path = "{}-{}".format(date_descending1,
                                          date_ascending2)
