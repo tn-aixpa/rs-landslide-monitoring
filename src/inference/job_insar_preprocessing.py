@@ -352,8 +352,8 @@ if __name__ == "__main__":
     if not os.path.exists(previous_artifact_folder):
         os.makedirs(previous_artifact_folder)
 
-    print(f"Parametri in input: s1_ascending={s1_a}, s1_descending={s1_d}, output_artifact_name={output_artifact_name}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}")
-    logging.info(f"Parametri in input: s1_ascending={s1_a}, s1_descending={s1_d}, output_artifact_name={output_artifact_name}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}")
+    print(f"Parametri in input: s1_ascending={s1_a}, s1_descending={s1_d}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}")
+    logging.info(f"Parametri in input: s1_ascending={s1_a}, s1_descending={s1_d}, shapeArtifact={shapeArtifact}, shapeFileName={shapeFileName}")
     # download data
     project = dh.get_or_create_project(project_name)
     print(f"Scaricamento degli artifact per il progetto: {project_name}")
