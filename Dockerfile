@@ -1,14 +1,11 @@
-FROM ghcr.io/tn-aixpa/rsde-tools:0.14.6
+FROM ghcr.io/tn-aixpa/rs-landslide-monitoring:0.15
 RUN conda init bash && . ~/.bashrc 
 
 WORKDIR /app
-COPY main.py .
-COPY requirements.txt .
-COPY merge.py .
+COPY src/inference/job_insar_preprocessing.py .
+COPY src/inference/job_insar_preprocessing.py .
 RUN mkdir /app/utils
-COPY utils /app/utils
+COPY src/core/ /app/utils
 RUN mkdir /app/data
-
-RUN python -m pip install -r requirements.txt
 
 ENTRYPOINT [ "/bin/bash" ]
