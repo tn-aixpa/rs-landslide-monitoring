@@ -311,7 +311,6 @@ if __name__ == "__main__":
     # read input parameters
     s1_a = json_input['s1_ascending'] # sentinel-1 ascending data artifact name (e.g., 's1_ascending')
     s1_d = json_input['s1_descending'] # sentinel-1 descending data artifact name (e.g., 's1_descending')
-    output_artifact_name=json_input['outputArtifactName'] #output artifact name (e.g., 'deforestation_output')
     shapeArtifact = json_input.get('shapeArtifactName') 
     shapeFileName = json_input.get('shapeFileName')
     mapArtifact = json_input.get('mapArtifactName')
