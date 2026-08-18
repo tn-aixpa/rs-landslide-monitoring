@@ -8,7 +8,7 @@ import tempfile
 import numpy as np
 import shutil
 import digitalhub as dh
-from utils.sdk_handler import upload_artifact
+from utils.skd_handler import upload_artifact
 from osgeo import gdal
 gdal.UseExceptions()
 import subprocess
