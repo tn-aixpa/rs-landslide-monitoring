@@ -1,4 +1,9 @@
 import os
+os.environ["PATH"] = "/home/nonroot/miniforge3/snap/bin:$PATH"
+os.environ["PROJ_LIB"] = "/home/nonroot/miniforge3/share/proj"
+os.environ["GDAL_DATA"] = "/home/nonroot/miniforge3/share/gdal"
+os.environ["GDAL_DRIVER_PATH"] = "/home/nonroot/miniforge3/lib/gdalplugins"
+os.environ["PROJ_DATA"] = "/home/nonroot/miniforge3/share/proj"
 import sys
 import json
 from snapista import Operator
@@ -8,7 +13,7 @@ import tempfile
 import numpy as np
 import shutil
 import digitalhub as dh
-from utils.sdk_handler import upload_artifact
+from src.sdk_handler import upload_artifact
 from osgeo import gdal
 gdal.UseExceptions()
 import subprocess
