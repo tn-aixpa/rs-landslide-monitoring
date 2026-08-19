@@ -375,7 +375,7 @@ if __name__ == "__main__":
     trentino_boundary_path = os.path.join(trentino_boundary_folder, shapeFileName)
     previous_artifact_path = ""
     input_json_path = ""
-    if len(dh.list_artifacts(project_name=project_name, artifact_name="02_pre_processed")) > 0:
+    if len(project.list_artifacts(artifact_name="02_pre_processed")) > 0:
         print(f"Scaricamento artefatto 02_pre_processed precedente dentro {previous_artifact_folder}")
         logging.info(f"Scaricamento artefatto 02_pre_processed precedente dentro {previous_artifact_folder}")
         previous_artifact = project.get_artifact("02_pre_processed")
