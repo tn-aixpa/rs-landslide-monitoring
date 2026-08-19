@@ -231,7 +231,7 @@ if __name__ == "__main__":
     trentino_aspect_map_path = os.path.join(input_map_folder,'trentino_aspect_map.tif')
     legend_path = os.path.join(input_map_folder,'legend.qml')
     input_json_path = os.path.join(input_path,'sensor_angles.json')
-    if len(dh.list_artifacts(project_name=project_name, artifact_name="03_features")) > 0:
+    if len(project.list_artifacts(project_name=project_name, artifact_name="03_features")) > 0:
         print(f"Downloading previous feature artifact 03_features inside {previous_feature_artifact_path}")
         logging.info(f"Downloading previous feature artifact 03_features inside {previous_feature_artifact_path}")
         previous_feature_artifact = project.get_artifact("03_features")
