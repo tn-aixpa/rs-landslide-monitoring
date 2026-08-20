@@ -231,7 +231,7 @@ if __name__ == "__main__":
     trentino_aspect_map_path = os.path.join(input_map_folder,'trentino_aspect_map.tif')
     legend_path = os.path.join(input_map_folder,'legend.qml')
     input_json_path = os.path.join(input_path,'sensor_angles.json')
-    if len(project.list_artifacts(project_name=project_name, artifact_name="03_features")) > 0:
+    if "03_features" in project.list_artifacts():
         print(f"Downloading previous feature artifact 03_features inside {previous_feature_artifact_path}")
         logging.info(f"Downloading previous feature artifact 03_features inside {previous_feature_artifact_path}")
         previous_feature_artifact = project.get_artifact("03_features")
@@ -563,11 +563,11 @@ if __name__ == "__main__":
         shutil.copy(legend_path,os.path.join(result_path, f'{starting_date}_{ending_date}', 'legend.qml'))
 
         if len(previous_feature_artifact_path) == 0:
-            upload_artifact(artifact_name = "03_features", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
+            upload_artifact(artifact_name = "03_features", project_name = project_name, src_path = result_path)
         else:
             print(f"Artifact 03_features already exists in project {project_name}. Updating the artifact with new data.")
             logging.info(f"Artifact 03_features already exists in project {project_name}. Updating the artifact with new data.")
             shutil.copytree(previous_feature_artifact_path, result_path, dirs_exist_ok=True)
-            upload_artifact(artifact_name = "03_features", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
+            upload_artifact(artifact_name = "03_features", project_name = project_name, src_path = result_path)
 
     print("Processing completed.")
