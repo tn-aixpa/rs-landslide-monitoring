@@ -375,7 +375,7 @@ if __name__ == "__main__":
     trentino_boundary_path = os.path.join(trentino_boundary_folder, shapeFileName)
     previous_artifact_path = ""
     input_json_path = ""
-    if len(project.list_artifacts(artifact_name="02_pre_processed")) > 0:
+    if "02_pre_processed" in project.list_artifacts():
         print(f"Scaricamento artefatto 02_pre_processed precedente dentro {previous_artifact_folder}")
         logging.info(f"Scaricamento artefatto 02_pre_processed precedente dentro {previous_artifact_folder}")
         previous_artifact = project.get_artifact("02_pre_processed")
@@ -565,12 +565,12 @@ if __name__ == "__main__":
     mosaic(result_path, list_filenames)
     print("Mosaici creati con successo per tutte le coppie di immagini.")
     logging.info("Mosaici creati con successo per tutte le coppie di immagini.")
-    if len(os.listdir(previous_artifact_path)) == 0:
-        upload_artifact(artifact_name = "02_pre_processed", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
+    if previous_artifact_path == "":
+        upload_artifact(artifact_name = "02_pre_processed", project_name = project_name, src_path = result_path)
     else:
         print(f"Artifact '02_pre_processed' already exists in project '{project_name}'. Updating the artifact with new data.")
         logging.info(f"Artifact '02_pre_processed' already exists in project '{project_name}'. Updating the artifact with new data.")
         shutil.copytree(previous_artifact_path, result_path, dirs_exist_ok=True)
-        upload_artifact(artifact_name = "02_pre_processed", project_name = project_name, src_path = result_path, output_path = f"s3://{project_name}")
+        upload_artifact(artifact_name = "02_pre_processed", project_name = project_name, src_path = result_path)
     print(f"Mosaics uploaded successfully as artifact: mosaics")
     logging.info(f"Mosaics uploaded successfully as artifact: mosaics")
