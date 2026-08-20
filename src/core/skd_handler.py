@@ -16,10 +16,9 @@ def download_artifact(artifact_name = "",
 
 def upload_artifact(artifact_name = "",
                     src_path = "",
-                    project_name = "",
-                    output_path = ""):    
+                    project_name = ""):    
     print(f"Upload artifact: {artifact_name}, {artifact_name}")    
     # Crea progetto, togliere local quando useremo backend
     project = dh.get_or_create_project(project_name)
-    project.log_artifact(name=artifact_name, kind="artifact", source=src_path, path=output_path)
+    project.log_artifact(name=artifact_name, kind="artifact", source=src_path)
     
