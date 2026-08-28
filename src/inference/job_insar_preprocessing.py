@@ -299,6 +299,8 @@ if __name__ == "__main__":
 
     global output_path, unwrap_folder,trentino_boundary_path,geo_wkt
 
+    print("Defining variables")
+    logging.info("Defining variables")
     args = sys.argv[1].replace("'","\"")
     json_input = json.loads(args)
     maindir = '.'
@@ -308,7 +310,8 @@ if __name__ == "__main__":
     input_folder = 'input'
     phase_wrapping_folder = 'phase_unwrapping'
 
-    # read input parameters
+    print("Reading input parameters")
+    logging.info("Reading input parameters")
     s1_a = json_input['s1_ascending'] # sentinel-1 ascending data artifact name (e.g., 's1_ascending')
     s1_d = json_input['s1_descending'] # sentinel-1 descending data artifact name (e.g., 's1_descending')
     shapeArtifact = json_input.get('shapeArtifactName') 
@@ -317,7 +320,8 @@ if __name__ == "__main__":
     
     project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
     
-    # define paths
+    print("Defining paths")
+    logging.info("Defining paths")
     data_path = os.path.join(maindir, data_folder, input_folder)
     result_path = os.path.join(maindir, data_folder, output_folder)
     data_ascending_folder = os.path.join(data_path, 'ascending')
@@ -328,7 +332,8 @@ if __name__ == "__main__":
     input_map_folder = os.path.join(data_path,'maps')
     previous_artifact_folder = os.path.join(data_path, 'previous_artifact')
     
-    # create data folders
+    print("Creating data folders")
+    logging.info("Creating data folders")
     if not os.path.exists(data_path):
         os.makedirs(data_path)  
     # create ascending and descending data folders
