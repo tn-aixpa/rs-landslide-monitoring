@@ -9,11 +9,11 @@ export GDAL_DATA=/home/nonroot/miniforge3/share/gdal
 export GDAL_DRIVER_PATH=/home/nonroot/miniforge3/lib/gdalplugins
 export PROJ_DATA=/home/nonroot/miniforge3/share/proj
 cd /app
-echo "{'s1_ascending': '$1', 's1_descending': '$2', 'shapeArtifactName': '$3', 'shapeFileName': '$4'}"
+echo "{'s1_ascending': '$1', 's1_descending': '$2', 'shapeArtifactName': '$3', 'shapeFileName': '$4', 'nproc': '$5'}"
 #export PATH="/home/nonroot/miniforge3/snap/.snap/auxdata/gdal/gdal-3-0-0/bin/:$PATH"
 echo "GDAL DATA AFTER EXPORT:"
 echo $GDAL_DATA
 echo "PROJ_LIB AFTER EXPORT"
 echo $PROJ_LIB
-python job_insar_preprocessing.py "{'s1_ascending': '$1', 's1_descending': '$2', 'shapeArtifactName': '$3', 'shapeFileName': '$4'}"
+python job_insar_preprocessing.py "{'s1_ascending': '$1', 's1_descending': '$2', 'shapeArtifactName': '$3', 'shapeFileName': '$4', 'nproc': '$5'}"
 exit
