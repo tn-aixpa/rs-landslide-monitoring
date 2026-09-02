@@ -25,7 +25,7 @@ logging.basicConfig(
         datefmt="%d-%m-%Y %H:%M:%S",
     )
 
-def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
+def interferometry(input_path,filename1,filename2,output_path,subswath="IW1",nproc=4):
     """
     Esegue l'interferometria tra immagini Sentinel-1
     Parameters    ----------
@@ -203,7 +203,7 @@ def interferometry(input_path,filename1,filename2,output_path,subswath="IW1"):
     coh = data_coh.reshape((height,width))
     try:
         image_unwrapped,_ = snaphu.unwrap(igram, coh, nlooks=23.8, cost="defo", ntiles=(20,20), init='mcf',#23.8
-                                        tile_overlap=(200,200), nproc=4, min_region_size=200, single_tile_reoptimize=False,
+                                        tile_overlap=(200,200), nproc=nproc, min_region_size=200, single_tile_reoptimize=False,
                                         regrow_conncomps=False)
     except Exception as e:
         message = "Fallimento Snaphu unwrapping con errore: {}. Cancellazione della cartella {} e salto del calcolo dell'interferogramma per il subswath {}.".format(e, output_path, iw)
@@ -317,6 +317,7 @@ if __name__ == "__main__":
     shapeArtifact = json_input.get('shapeArtifactName') 
     shapeFileName = json_input.get('shapeFileName')
     mapArtifact = json_input.get('mapArtifactName')
+    nproc = json_input.get('nproc')
     
     project_name=os.environ["PROJECT_NAME"] #project name (e.g., 'landslide-monitoring')
     
@@ -502,9 +503,9 @@ if __name__ == "__main__":
         print("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
         logging.info("Calcolo interferometria tra {} e {}".format(filename_descending1,filename_descending2))
         tetha_descending_iw1 = interferometry(input_path_descending, filename_descending1, filename_descending2, 
-                                      output_path_descending,subswath='IW1')#east
+                                      output_path_descending,subswath='IW1',nproc=nproc)#east
         tetha_descending_iw2 = interferometry(input_path_descending, filename_descending1, filename_descending2, 
-                             output_path_descending,subswath='IW2')#west
+                             output_path_descending,subswath='IW2',nproc=nproc)#west
         if tetha_descending_iw1!=9999.0:
             tetha_descending = tetha_descending_iw1
         elif tetha_descending_iw2!=9999.0:
@@ -519,14 +520,14 @@ if __name__ == "__main__":
         logging.info("Calcolo interferometria tra {} e {}".format(filename_ascending1,filename_ascending2))
         if tetha_descending_iw2!=9999.0:
             tetha_ascending_iw1 = interferometry(input_path_ascending, filename_ascending1, filename_ascending2,
-                                        output_path_ascending,subswath='IW1')#west
+                                        output_path_ascending,subswath='IW1',nproc=nproc)#west
         else:
             print("Skipping ascending IW1 interferometry computation due to failure in descending IW2 interferometry.")
             logging.warning("Skipping ascending IW1 interferometry computation due to failure in descending IW2 interferometry.")
             tetha_ascending_iw1 = 9999.0
         if tetha_descending_iw1!=9999.0:
             tetha_ascending_iw2 = interferometry(input_path_ascending, filename_ascending1, filename_ascending2, 
-                                 output_path_ascending,subswath='IW2')#east
+                                 output_path_ascending,subswath='IW2',nproc=nproc)#east
         else:
             print("Skipping ascending IW2 interferometry computation due to failure in descending IW1 interferometry.")
             logging.warning("Skipping ascending IW2 interferometry computation due to failure in descending IW1 interferometry.")
