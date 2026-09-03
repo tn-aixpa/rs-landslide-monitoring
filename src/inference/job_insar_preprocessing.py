@@ -437,18 +437,28 @@ if __name__ == "__main__":
         filename_descending2 = list_files_descending[sorted_indeces_descending[i]]
         date_descending1 = list_dates_descending[sorted_indeces_descending[i-1]]
         date_descending2 = list_dates_descending[sorted_indeces_descending[i]]
-        if date_descending1 == date_descending2 or date_descending2 == list_dates_descending[sorted_indeces_descending[i+1]]:
-            print(f"Warning: Le immagini discendenti {filename_descending1} e {filename_descending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
-            logging.warning(f"Le immagini discendenti {filename_descending1} e {filename_descending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
-            date_descending2 = list_dates_descending[sorted_indeces_descending[i+1]]
-            filename_descending2 = list_files_descending[sorted_indeces_descending[i+1]]
         date_ascending1 = list_dates_ascending[sorted_indeces_ascending[i-1]]
         date_ascending2 = list_dates_ascending[sorted_indeces_ascending[i]]
-        if date_ascending1 == date_ascending2 or date_ascending2 == list_dates_ascending[sorted_indeces_ascending[i+1]]:
-            print(f"Warning: Le immagini ascendenti {filename_ascending1} e {filename_ascending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
-            logging.warning(f"Le immagini ascendenti {filename_ascending1} e {filename_ascending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
-            date_ascending2 = list_dates_ascending[sorted_indeces_ascending[i+1]]
-            filename_ascending2 = list_files_ascending[sorted_indeces_ascending[i+1]]
+        if i+1 <= n_images:
+            if date_descending1 == date_descending2 or date_descending2 == list_dates_descending[sorted_indeces_descending[i+1]]:
+                print(f"Warning: Le immagini discendenti {filename_descending1} e {filename_descending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
+                logging.warning(f"Le immagini discendenti {filename_descending1} e {filename_descending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
+                date_descending2 = list_dates_descending[sorted_indeces_descending[i+1]]
+                filename_descending2 = list_files_descending[sorted_indeces_descending[i+1]]
+            if date_ascending1 == date_ascending2 or date_ascending2 == list_dates_ascending[sorted_indeces_ascending[i+1]]:
+                print(f"Warning: Le immagini ascendenti {filename_ascending1} e {filename_ascending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
+                logging.warning(f"Le immagini ascendenti {filename_ascending1} e {filename_ascending2} hanno la stessa data o non appartengono ad aree corrispondenti. Prendo data successiva.")
+                date_ascending2 = list_dates_ascending[sorted_indeces_ascending[i+1]]
+                filename_ascending2 = list_files_ascending[sorted_indeces_ascending[i+1]]
+        else:
+            if date_descending1 == date_descending2:
+                print(f"Warning: Le immagini discendenti {filename_descending1} e {filename_descending2} hanno la stessa data e non ci sono ulteriori immagini della lista da analizzare. Esco dal ciclo.")
+                logging.warning(f"Le immagini discendenti {filename_descending1} e {filename_descending2} hanno la stessa data e non ci sono ulteriori immagini della lista da analizzare. Esco dal ciclo.")
+                break
+            if date_ascending1 == date_ascending2:
+                print(f"Warning: Le immagini ascendenti {filename_ascending1} e {filename_ascending2} hanno la stessa data e non ci sono ulteriori immagini della lista da analizzare. Esco dal ciclo.")
+                logging.warning(f"Le immagini ascendenti {filename_ascending1} e {filename_ascending2} hanno la stessa data e non ci sono ulteriori immagini della lista da analizzare. Esco dal ciclo.")
+                break
         if date_descending1<date_ascending1:
             output_path = "{}-{}".format(date_descending1,
                                          date_ascending2)
