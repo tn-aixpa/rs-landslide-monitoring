@@ -196,6 +196,25 @@ def _run_raster_merge(inputs: Sequence[str], output_tif: str) -> None:
     ]
     subprocess.run(cmd, check=True, timeout=CONFIG.subprocess_timeout_s)
 
+def _next_versioned_path(path: str) -> str:
+    """
+    Restituisce un path libero per 'path', aggiungendo un suffisso '_v2', '_v3', ...
+    se il file esiste già, invece di sovrascriverlo silenziosamente.
+ 
+    Esempio: 'interferogram_deburst_unw_disp_TC.tif' esiste già ->
+             'interferogram_deburst_unw_disp_TC_v2.tif' (o v3, v4, ... a seguire).
+    """
+    if not os.path.exists(path):
+        return path
+ 
+    root, ext = os.path.splitext(path)
+    version = 2
+    while True:
+        candidate = f"{root}_v{version}{ext}"
+        if not os.path.exists(candidate):
+            return candidate
+        version += 1
+
 
 def interferometry(
     input_path: str,
@@ -443,9 +462,15 @@ def interferometry(
     g4.add_node(Operator("Write", file=os.path.join(output_path, "interferogram_deburst_unw_disp_TC.dim")),
                 node_id="writeTC", source="terrain-correction")
 
-    tif_path = os.path.join(output_path, "interferogram_deburst_unw_disp_TC.tif")
-    if os.path.exists(tif_path):
-        tif_path = os.path.join(output_path, "interferogram_deburst_unw_disp_TC_2.tif")
+    tif_path = _next_versioned_path(
+        os.path.join(output_path, "interferogram_deburst_unw_disp_TC.tif")
+    )
+    if tif_path != os.path.join(output_path, "interferogram_deburst_unw_disp_TC.tif"):
+        logger.info(
+            "Un file precedente esiste già per questa coppia (subswath %s, %s/%s): "
+            "salvo la nuova versione come %s invece di sovrascrivere.",
+            subswath, filename1, filename2, tif_path,
+        )
     g4.add_node(Operator("Write", formatName="GeoTIFF-BigTIFF", file=tif_path),
                 node_id="writeTCtif", source="terrain-correction")
     g4.run()
