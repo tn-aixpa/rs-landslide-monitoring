@@ -584,7 +584,7 @@ def main(json_input: dict) -> None:
     shape_artifact = _require(json_input, "shapeArtifactName")
     shape_filename = _require(json_input, "shapeFileName")
     map_artifact = json_input.get("mapArtifactName")
-    nproc = json_input.get("nproc") or 4
+    nproc = int(json_input.get("nproc")) or 4
 
     if "PROJECT_NAME" not in os.environ:
         raise EnvironmentError("Variabile d'ambiente 'PROJECT_NAME' non impostata.")
