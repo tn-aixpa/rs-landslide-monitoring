@@ -185,7 +185,7 @@ def _run_raster_merge(inputs: Sequence[str], output_tif: str) -> None:
     Esegue lo script esterno di merge raster senza passare per una shell,
     evitando l'injection di comandi tramite path costruiti da nomi file esterni.
     """
-    script_path = os.path.join(os.path.dirname(__file__), "..", "core", "raster_utils.py")
+    script_path = os.path.join(os.path.dirname(__file__), "merge.py")
     cmd = [
         sys.executable, script_path,
         "-o", output_tif,
@@ -214,6 +214,15 @@ def _next_versioned_path(path: str) -> str:
         if not os.path.exists(candidate):
             return candidate
         version += 1
+
+def _tree_files(startpath):
+    for root, _, files in os.walk(startpath):
+        level = root.replace(startpath, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+        print('{}{}/'.format(indent, os.path.basename(root)))
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            print('{}{}'.format(subindent, f))
 
 
 def interferometry(
@@ -512,8 +521,8 @@ def mosaic(path: str, list_filenames: Sequence[str], trentino_boundary_path: str
                 )
                 continue
 
-            iw1_tifs = [os.path.join(iw1_dir, fi) for fi in os.listdir(iw1_dir) if fi.endswith(".tif")]
-            iw2_tifs = [os.path.join(iw2_dir, fi) for fi in os.listdir(iw2_dir) if fi.endswith(".tif")]
+            iw1_tifs = [os.path.join(iw1_dir, fi) for fi in os.listdir(iw1_dir) if "interferogram_deburst_unw_disp_TC" in fi and fi.endswith(".tif")]
+            iw2_tifs = [os.path.join(iw2_dir, fi) for fi in os.listdir(iw2_dir) if "interferogram_deburst_unw_disp_TC" in fi and fi.endswith(".tif")]
             if not iw1_tifs or not iw2_tifs:
                 logger.warning(
                     "Salto il mosaico %s (%s): nessun .tif trovato in IW1 e/o IW2.",
@@ -523,8 +532,9 @@ def mosaic(path: str, list_filenames: Sequence[str], trentino_boundary_path: str
 
             merged_tif = os.path.join(orientation_path, "m.tif")
             cutline_tif = os.path.join(orientation_path, "coherence_displacement.tif")
+            list_files = iw1_tifs + iw2_tifs
             try:
-                _run_raster_merge([iw1_tifs[0], iw2_tifs[0]], merged_tif)
+                _run_raster_merge(list_files, merged_tif)
                 gdal.Warp(
                     cutline_tif, merged_tif,
                     format="GTiff",
@@ -816,6 +826,8 @@ def main(json_input: dict) -> None:
 
     mosaic(result_path, list_filenames, trentino_boundary_path)
     logger.info("Mosaici creati con successo per tutte le coppie di immagini.")
+
+    _tree_files(result_path)
 
     if not previous_artifact_path:
         upload_artifact(artifact_name="02_pre_processed", project_name=project_name, src_path=result_path)
