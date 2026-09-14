@@ -411,11 +411,16 @@ def interferometry(
 
     width = height = None
     with open(os.path.join(wrapped_folder_path, phasefile_hdr), "r") as f:
-        for line in f:
+        # for line in f:
+        #     if "samples" in line:
+        #         width = int(line.split("=")[-1].strip())
+        #     if "lines" in line:
+        #         height = int(line.split("=")[-1].strip())
+        for line in f.readlines():
             if "samples" in line:
-                width = int(line.split("=")[-1].strip())
+                width = int(line[10:])
             if "lines" in line:
-                height = int(line.split("=")[-1].strip())
+                height = int(line[8:])
     if width is None or height is None:
         logger.error("Impossibile leggere width/height da %s.", phasefile_hdr)
         shutil.rmtree(output_path, ignore_errors=True)
