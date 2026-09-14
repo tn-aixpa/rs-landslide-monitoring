@@ -194,6 +194,7 @@ def _run_raster_merge(inputs: Sequence[str], output_tif: str) -> None:
         "-of", "GTiff",
         *inputs,
     ]
+    print(cmd)
     subprocess.run(cmd, check=True, timeout=CONFIG.subprocess_timeout_s)
 
 def _next_versioned_path(path: str) -> str:
@@ -533,6 +534,7 @@ def mosaic(path: str, list_filenames: Sequence[str], trentino_boundary_path: str
             merged_tif = os.path.join(orientation_path, "m.tif")
             cutline_tif = os.path.join(orientation_path, "coherence_displacement.tif")
             list_files = iw1_tifs + iw2_tifs
+            logger.info("Lista delle immagini da mosaicare", list_files)
             try:
                 _run_raster_merge(list_files, merged_tif)
                 gdal.Warp(
@@ -545,6 +547,8 @@ def mosaic(path: str, list_filenames: Sequence[str], trentino_boundary_path: str
                 )
             except (subprocess.SubprocessError, RuntimeError) as exc:
                 logger.error("Fallita la creazione del mosaico %s (%s): %s", f, orientation, exc)
+                shutil.rmtree(iw1_dir, ignore_errors=True)
+                shutil.rmtree(iw2_dir, ignore_errors=True)
                 continue
             finally:
                 if os.path.exists(merged_tif):
