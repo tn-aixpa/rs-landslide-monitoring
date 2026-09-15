@@ -415,6 +415,7 @@ def run(json_input: dict) -> None:
     # Path dell'artifact "precedente" vuoto finché non viene effettivamente trovato e
     # scaricato: usato più avanti per decidere se creare un nuovo artifact o aggiornarlo.
     previous_feature_artifact_path = ""
+    project = dh.get_or_create_project(project_name)
     if output_artifact_name in project.list_artifacts():
         logger.info(
             "Scaricamento del precedente artifact '%s' in %s",
