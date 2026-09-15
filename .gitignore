@@ -10,3 +10,4 @@ data
 *.hdr
 phase_unwrapping
 src/jypter_notebook.ipynb
+Dockerfile_atlas
