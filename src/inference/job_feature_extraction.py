@@ -609,7 +609,7 @@ def run(json_input: dict) -> None:
 
     shutil.copy(legend_path, os.path.join(out_dir, "legend.qml"))
 
-    if not previous_feature_artifact_path:
+    if previous_feature_artifact_path=="":
         upload_artifact(artifact_name=output_artifact_name, project_name=project_name, src_path=result_path)
     else:
         logger.info(
