@@ -819,7 +819,7 @@ def main(json_input: dict) -> None:
 
     # Salvataggio dei theta ascending/descending in JSON
     sensor_angles_path = os.path.join(result_path, "sensor_angles.json")
-    if not input_json_path:
+    if input_json_path == "":
         theta_dict = {"ascending": list_theta_ascending, "descending": list_theta_descending}
     else:
         with open(input_json_path, "r") as f:
@@ -839,7 +839,7 @@ def main(json_input: dict) -> None:
 
     _tree_files(result_path)
 
-    if not previous_artifact_path:
+    if previous_artifact_path == "":
         upload_artifact(artifact_name="02_pre_processed", project_name=project_name, src_path=result_path)
     else:
         logger.info(
