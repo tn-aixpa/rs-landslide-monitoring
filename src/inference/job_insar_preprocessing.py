@@ -539,7 +539,7 @@ def mosaic(path: str, list_filenames: Sequence[str], trentino_boundary_path: str
             merged_tif = os.path.join(orientation_path, "m.tif")
             cutline_tif = os.path.join(orientation_path, "coherence_displacement.tif")
             list_files = iw1_tifs + iw2_tifs
-            logger.info("Lista delle immagini da mosaicare", list_files)
+            logger.info("Lista delle immagini da mosaicare: %s", list_files)
             try:
                 _run_raster_merge(list_files, merged_tif)
                 gdal.Warp(
