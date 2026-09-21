@@ -648,7 +648,7 @@ def main(json_input: dict) -> None:
     previous_artifact_path = ""
     input_json_path = ""
     project = dh.get_or_create_project(project_name)
-    if "02_pre_processed" in project.list_artifacts():
+    if len(project.list_artifacts(name="02_pre_processed"))>0:
         logger.info("Scaricamento artefatto precedente '02_pre_processed'")
         previous_artifact = project.get_artifact("02_pre_processed")
         previous_artifact_path = previous_artifact.download(previous_artifact_folder, overwrite=True)
