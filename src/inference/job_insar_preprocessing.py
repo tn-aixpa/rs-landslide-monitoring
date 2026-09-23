@@ -822,6 +822,7 @@ def main(json_input: dict) -> None:
     if input_json_path == "":
         theta_dict = {"ascending": list_theta_ascending, "descending": list_theta_descending}
     else:
+        logger.info("File JSON contenente l'angolo di vista del sensore in orbita ascendente/discendente già presente. Aggiornamento del file JSON.")
         with open(input_json_path, "r") as f:
             theta_dict = json.load(f)
         theta_dict.setdefault("ascending", []).extend(list_theta_ascending)
