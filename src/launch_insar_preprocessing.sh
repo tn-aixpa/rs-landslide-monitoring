@@ -3,7 +3,7 @@ ls -la /shared
 cd ~
 pwd
 source .bashrc
-export PATH="/home/nonroot/miniforge3/snap/bin:$PATH"
+export PATH="/home/nonroot/snap/bin:$PATH"
 export PROJ_LIB=/home/nonroot/miniforge3/share/proj
 export GDAL_DATA=/home/nonroot/miniforge3/share/gdal
 export GDAL_DRIVER_PATH=/home/nonroot/miniforge3/lib/gdalplugins
