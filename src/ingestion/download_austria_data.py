@@ -1,8 +1,9 @@
+import argparse
 import os
+from pathlib import Path
 
 import pandas as pd
 import requests as r
-
 from rain.setup_logging import setup_logging
 
 logger = setup_logging()
@@ -11,7 +12,13 @@ START_DATE = "1980-01-01"
 # START_DATE = '2025-12-25'
 END_DATE = "2025-12-31"
 
-output_csv_path = "/home/jfleming/Documents/rain-temp/data/temp/grouped.csv"
+ap = argparse.ArgumentParser()
+
+ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+
+data_dir = Path(ap.data_dir)
+
+output_csv_path = data_dir /'temp'/ "grouped.csv"
 os.unlink(output_csv_path)  # clear contents
 
 write_header = True
@@ -66,7 +73,7 @@ for station_id in stations_to_try:
     austria = austria.drop(["datetime"], axis=1)
     austria = austria.dropna()  # drop any missing timestep (None in JSON response)
 
-    austria.to_csv("/home/jfleming/Documents/rain-temp/data/temp/raw.csv", index=False)
+    austria.to_csv(data_dir / "temp" / "raw.csv", index=False)
 
     local_time = austria["au_timestamp"].dt.tz_convert("Europe/Vienna")
     meteorological_day = (

@@ -6,7 +6,7 @@ import pandas as pd
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-
+data_dir = Path(ap.data_dir)
 
 DATE_COLUMN_NAME = "Unnamed: 2"
 RAIN_COLUMN_NAME = "sum"
@@ -14,7 +14,7 @@ RAIN_COLUMN_NAME = "sum"
 RAIN_COLUMN_NAME_2 = "Niederschlag\nPrecipitazione\n[mm]\n09:00 - 09:00"
 DATE_COLUMN_NAME_2 = "Datum\nData"
 
-BASE_FOLDER = Path(r"C:\Users\jfleming\Documents\rain\data\responses\sudtirol")
+BASE_FOLDER = data_dir / "responses" / "sudtirol"
 
 for file in os.listdir(BASE_FOLDER):
     print(file)
@@ -46,7 +46,7 @@ for file in os.listdir(BASE_FOLDER):
     df = df[df["piogga(mm)"] != "---"]
 
     df.to_csv(
-        r"C:\Users\jfleming\Documents\rain\data\rainfall_observations\bolzano_observations.csv",
+        str(data_dir / "rainfall_observations" / "bolzano_observations.csv"),
         mode="a",
         index=False,
     )

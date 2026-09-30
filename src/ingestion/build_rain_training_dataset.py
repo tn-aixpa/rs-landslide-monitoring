@@ -622,8 +622,9 @@ def main(
     logger.info("Calculating monthly normals...")
 
     monthly_normals = calculate_monthly_normals(observations)
+    
     monthly_normals.to_csv(
-        "/home/jfleming/Documents/rain-temp/data/temp/monthly_normals.csv", index=False
+        str(data_dir / 'temp' / 'monthly_normals.csv'), index=False
     )
 
     run_context.climatology_decay_parameters = fast_parallel_parameter_search(

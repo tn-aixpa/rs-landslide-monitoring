@@ -2,7 +2,7 @@
 Parses number format from netcdf file output of Crespi, also flips raster upside-down
 to fix weird R conventions which don't match those of GDAL
 """
-
+import argparse
 import os
 import subprocess
 from datetime import datetime, timedelta
@@ -17,7 +17,13 @@ date1 = datetime.strptime("01/01/1970", "%d/%m/%Y")  # noqa: DTZ007
 
 d_2017 = 17167 - 3652
 
-output_path = Path("/home/jfleming/Documents/rain-temp/data/crespi_data")
+ap = argparse.ArgumentParser()
+
+ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+
+data_dir = Path(ap.data_dir)
+
+output_path = Path(data_dir / "crespi_data")
 
 for band in range(d_2017, d_2017 + 366):
     current_date = date1 + timedelta(days=band + 3651)
@@ -35,7 +41,7 @@ for band in range(d_2017, d_2017 + 366):
             "gdal_translate",
             "-b",
             f"{band}",
-            "/home/jfleming/Documents/crespi_data_extraction/DailySeries_1980_2018_Prec.nc",
+            str(data_dir/ "DailySeries_1980_2018_Prec.nc"),
             tmp_out_path_str,
             "-co",
             "-a_srs",

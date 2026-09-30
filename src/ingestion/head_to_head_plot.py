@@ -1,14 +1,20 @@
 """
 WIP
 """
-
+import argparse
 from glob import glob
 from pathlib import Path
 
 from rain.build_rain_training_dataset import RunContext, read_observation_data
 from rain.read_station_data import read_station_data
 
-data_dir = Path("/home/jfleming/Documents/rain-temp/data")
+ap = argparse.ArgumentParser()
+
+ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+
+data_dir = Path(ap.data_dir)
+
+output_path = Path(data_dir / "crespi_data")
 
 run_context = RunContext(data_dir)
 
