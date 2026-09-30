@@ -19,6 +19,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 from osgeo import gdal
+#import esa_snappy
 import snaphu
 from snapista import Operator, Graph
 
@@ -825,8 +826,8 @@ def main(json_input: dict) -> None:
         logger.info("File JSON contenente l'angolo di vista del sensore in orbita ascendente/discendente già presente. Aggiornamento del file JSON.")
         with open(input_json_path, "r") as f:
             theta_dict = json.load(f)
-        theta_dict.setdefault("ascending", []).extend(list_theta_ascending)
-        theta_dict.setdefault("descending", []).extend(list_theta_descending)
+        theta_dict["ascending"].extend(list_theta_ascending)
+        theta_dict["descending"].extend(list_theta_descending)
     with open(sensor_angles_path, "w") as f:
         json.dump(theta_dict, f)
 
