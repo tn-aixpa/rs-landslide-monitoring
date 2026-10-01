@@ -14,3 +14,15 @@ geopandas==1.0.1
 # Raster and Vector Geospatial Processing
 # -------------------------------------------
 rasterio==1.4.3
+
+# -------------------------------------------
+# Rain packages
+# -------------------------------------------
+beautifulsoup4==4.15.0
+fiona==1.10.1
+joblib==1.6.0
+requests==2.34.2
+scipy==1.15.2
+
+# Dev dependency. Purtroppo conda non ha questo concetto
+matplotlib==3.10.9
