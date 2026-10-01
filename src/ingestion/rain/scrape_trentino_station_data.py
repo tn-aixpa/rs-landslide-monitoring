@@ -9,8 +9,7 @@ from pathlib import Path
 import pandas as pd
 import requests as r
 from bs4 import BeautifulSoup
-
-from rain.setup_logging import setup_logging
+from setup_logging import setup_logging
 
 logger = setup_logging()
 

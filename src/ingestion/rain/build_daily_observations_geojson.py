@@ -1,9 +1,11 @@
+'''
+Output file used for debugging single day outputs in QGIS
+'''
 from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
-
-from rain.constants import EPSG_CODE
+from constants import EPSG_CODE
 
 
 def build_daily_observations_geojson(

@@ -9,17 +9,15 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
-
-from rain.build_rain_training_dataset import RunContext, read_observation_data
-from rain.parse_datetime import parse_datetime
-from rain.read_station_data import read_station_data
-
+from ingestion.rain.crespi_comparison import RunContext, read_observation_data
+from parse_datetime import parse_datetime
+from read_station_data import read_station_data
 
 ap = argparse.ArgumentParser()
 
 ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-
-data_dir = Path(ap.data_dir)
+args = ap.parse_args()
+data_dir = Path(args.data_dir)
 
 run_context = RunContext(data_dir)
 

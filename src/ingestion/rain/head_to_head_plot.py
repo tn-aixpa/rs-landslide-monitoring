@@ -5,14 +5,14 @@ import argparse
 from glob import glob
 from pathlib import Path
 
-from rain.build_rain_training_dataset import RunContext, read_observation_data
-from rain.read_station_data import read_station_data
+from ingestion.rain.crespi_comparison import RunContext, read_observation_data
+from read_station_data import read_station_data
 
 ap = argparse.ArgumentParser()
 
 ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-
-data_dir = Path(ap.data_dir)
+args = ap.parse_args()
+data_dir = Path(args.data_dir)
 
 output_path = Path(data_dir / "crespi_data")
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import requests as r
-from rain.setup_logging import setup_logging
+from setup_logging import setup_logging
 
 logger = setup_logging()
 
@@ -13,10 +13,9 @@ START_DATE = "1980-01-01"
 END_DATE = "2025-12-31"
 
 ap = argparse.ArgumentParser()
-
 ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-
-data_dir = Path(ap.data_dir)
+args = ap.parse_args()
+data_dir = Path(args.data_dir)
 
 output_csv_path = data_dir /'temp'/ "grouped.csv"
 os.unlink(output_csv_path)  # clear contents

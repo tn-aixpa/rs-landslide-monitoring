@@ -6,7 +6,8 @@ import pandas as pd
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-data_dir = Path(ap.data_dir)
+args = ap.parse_args()
+data_dir = Path(args.data_dir)
 
 DATE_COLUMN_NAME = "Unnamed: 2"
 RAIN_COLUMN_NAME = "sum"

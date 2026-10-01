@@ -20,9 +20,8 @@ d_2017 = 17167 - 3652
 ap = argparse.ArgumentParser()
 
 ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-
-data_dir = Path(ap.data_dir)
-
+args = ap.parse_args()
+data_dir = Path(args.data_dir)
 output_path = Path(data_dir / "crespi_data")
 
 for band in range(d_2017, d_2017 + 366):

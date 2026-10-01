@@ -12,7 +12,7 @@ def parse_datetime(str_or_series: str) -> pd.Timestamp: ...
 
 def parse_datetime(
     str_or_series: str | pd.Series,
-) -> pd.Timestamp | pd.Series[pd.Timestamp]:
+) -> pd.Timestamp | pd.Series:
     """
     Parse various timestamp formats into project specific format with time element stripped off.
     """

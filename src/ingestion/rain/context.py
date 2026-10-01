@@ -1,10 +1,9 @@
 from pathlib import Path
 
 import numpy as np
+from parse_datetime import parse_datetime
 from rasterio.features import geometry_mask
-
-from rain.parse_datetime import parse_datetime
-from rain.read_boundary_dataset import read_boundary_dataset
+from read_boundary_dataset import read_boundary_dataset
 
 
 class RunContext:

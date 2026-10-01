@@ -1,21 +1,22 @@
 """
-PRISM-like anomaly interpolation for daily precipitation
-Questo script viene usato per calculare 1. il climatology iniziale per ogni mese che costruire
-il set di dati di addestramento; 2. i set di dati quotidiano
+PRISM-like anomaly interpolation for daily precipitation.
+
+Questo script e' usato per fare un confronto contro nostro codice e quella di Crespi et al.
+
+A tal fine, questo script legge come input 
+1. il DEM come un .tif
+2. il set di dati per i stazione come .csv
+3. I set di dati per le osservazione come .csv
+
+Questo script e' usato per calculare 1. il climatology iniziale per ogni mese che costruire
+il set di dati di addestramento; 2. i set di dati quotidiano.
 
 This will use all CPUs available through joblib to parallelize the process.
 
 Se non c'e' piove per un giorno in particolare, non produciamo output per quell giorno (100% mask)
 
-
-Roba da fare:
-- Verifica che il estenzione dell'DEM copre tutti le stazione durante runtime as the one passed may be different
-- Switch to logging library rather than printing
+TODO list:
 - Argument help to italian
-- Add interpolation start and end date arguments
-- Convert to conda
-- README
-- Download daily data
 - Rework `grid` variable
 
 """
@@ -27,18 +28,17 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import rasterio
+from build_daily_observations_geojson import build_daily_observations_geojson
+from context import RunContext
+from delete_all_from_folder import delete_all_from_folder
+from is_debugging import is_debugging
 from joblib import Parallel, delayed
+from parse_datetime import parse_datetime
+from read_observation_data import read_observation_data
+from read_station_data import read_station_data
 from scipy.optimize import minimize
 from scipy.spatial import cKDTree
-
-from rain.build_daily_observations_geojson import build_daily_observations_geojson
-from rain.delete_all_from_folder import delete_all_from_folder
-from rain.is_debugging import is_debugging
-from rain.parse_datetime import parse_datetime
-from rain.read_observation_data import read_observation_data
-from rain.read_station_data import read_station_data
-from rain.context import RunContext
-from rain.setup_logging import setup_logging
+from setup_logging import setup_logging
 
 logger = setup_logging()
 
@@ -770,7 +770,7 @@ def main(
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
 
-    normal = ap.add_argument_group("options", "Options used in production.")
+    normal = ap.add_argument_group("options", "Opzione usato in produzione.")
 
     normal.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
     normal.add_argument(
@@ -790,7 +790,7 @@ if __name__ == "__main__":
     )
 
     debug = ap.add_argument_group(
-        "debug options", "Options useful when during developement/ debugging."
+        "debug options", "Opzione utile durante il fase di svillupo/ debug."
     )
 
     # Debugging options

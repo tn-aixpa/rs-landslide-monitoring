@@ -2,8 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
-from rain.parse_datetime import parse_datetime
+from parse_datetime import parse_datetime
 
 BAD_OBSERVATION_CODES = [
     90,  # Delayed because of snow
