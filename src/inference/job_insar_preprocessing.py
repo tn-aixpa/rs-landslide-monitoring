@@ -19,7 +19,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 from osgeo import gdal
-#import esa_snappy
+import esa_snappy
 import snaphu
 from snapista import Operator, Graph
 
@@ -818,6 +818,21 @@ def main(json_input: dict) -> None:
             list_theta_ascending.append(theta_ascending)
             logger.info("Platform heading angle ascending: %s", theta_ascending)
 
+    logger.info("Interferometria completata per tutte le coppie di immagini. Calcolo dei mosaici.")
+    logger.info("Step 2: Creazione dei mosaici di spostamento e coerenza")
+    list_filenames = [f for f in os.listdir(result_path) if os.path.isdir(os.path.join(result_path, f))]
+    logger.info("Trovate %d sottocartelle in %s", len(list_filenames), result_path)
+
+    mosaic(result_path, list_filenames, trentino_boundary_path)
+    logger.info("Mosaici creati con successo per tutte le coppie di immagini.")
+
+    if previous_artifact_path != "":
+        logger.info(
+            "Artifact '02_pre_processed' già esistente nel progetto '%s'. Aggiornamento con i nuovi dati.",
+            project_name,
+        )
+        shutil.copytree(previous_artifact_path, result_path, dirs_exist_ok=True)
+
     # Salvataggio dei theta ascending/descending in JSON
     sensor_angles_path = os.path.join(result_path, "sensor_angles.json")
     if input_json_path == "":
@@ -831,25 +846,8 @@ def main(json_input: dict) -> None:
     with open(sensor_angles_path, "w") as f:
         json.dump(theta_dict, f)
 
-    logger.info("Interferometria completata per tutte le coppie di immagini. Calcolo dei mosaici.")
-    logger.info("Step 2: Creazione dei mosaici di spostamento e coerenza")
-    list_filenames = [f for f in os.listdir(result_path) if os.path.isdir(os.path.join(result_path, f))]
-    logger.info("Trovate %d sottocartelle in %s", len(list_filenames), result_path)
-
-    mosaic(result_path, list_filenames, trentino_boundary_path)
-    logger.info("Mosaici creati con successo per tutte le coppie di immagini.")
-
     _tree_files(result_path)
-
-    if previous_artifact_path == "":
-        upload_artifact(artifact_name="02_pre_processed", project_name=project_name, src_path=result_path)
-    else:
-        logger.info(
-            "Artifact '02_pre_processed' già esistente nel progetto '%s'. Aggiornamento con i nuovi dati.",
-            project_name,
-        )
-        shutil.copytree(previous_artifact_path, result_path, dirs_exist_ok=True)
-        upload_artifact(artifact_name="02_pre_processed", project_name=project_name, src_path=result_path)
+    upload_artifact(artifact_name="02_pre_processed", project_name=project_name, src_path=result_path)
 
     logger.info("Mosaici caricati con successo come artifact '02_pre_processed'.")
 
