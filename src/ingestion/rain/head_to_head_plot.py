@@ -5,8 +5,9 @@ import argparse
 from glob import glob
 from pathlib import Path
 
-from ingestion.rain.crespi_comparison import RunContext, read_observation_data
 from read_station_data import read_station_data
+
+from ingestion.rain.crespi_comparison import RunContext, read_observation_data
 
 ap = argparse.ArgumentParser()
 

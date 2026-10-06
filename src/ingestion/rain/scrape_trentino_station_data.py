@@ -1,5 +1,5 @@
 """
-Download data from Trentino Meteo storico website
+Download historical data from Trentino Meteo storico website
 """
 
 import argparse
