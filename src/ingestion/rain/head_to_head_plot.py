@@ -1,26 +1,24 @@
 """
 WIP
 """
-import random
-import sys
-import pandas as pd
-import rasterio
 import argparse
+import random
 from glob import glob
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
-
-from crespi_comparison import RunContext, read_observation_data
+import pandas as pd
+import rasterio
+from crespi_comparison import RunContext
 from parse_datetime import parse_datetime
 from read_station_data import read_station_data
 
-# ap = argparse.ArgumentParser()
+ap = argparse.ArgumentParser()
+ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+args = ap.parse_args()
+data_dir = Path(args.data_dir)
 
-# ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-# args = ap.parse_args()
-# data_dir = Path(args.data_dir)
-data_dir = Path("/home/jfleming/Documents/rs-landslide-monitoring/data")
 
 output_path = Path(data_dir / "crespi_data")
 
@@ -44,12 +42,10 @@ for crespi_dataset in crespi_paths:
     crespi_stem = Path(crespi_dataset).stem
     date_str = crespi_stem[7:].replace("_", "/")
     time_stamp = parse_datetime(date_str)
-    # daily_observations = observations[observations["date"] == time_stamp]
     fleming_file_path = run_context.OUTPUT_DIRECTORY / f"fleming_{crespi_date}.tif"
 
     fleming_series = []
     if not fleming_file_path.exists():
-        # print(f"{fleming_file_path} does not exist")
         # Then all the fleming values are 0, plot em
         fleming_series = pd.Series([0 for _ in range(len(stations))])
     else:
@@ -97,12 +93,3 @@ plt.ylim(0, 100)
 plt.ylabel("fleming (mm)")
 plt.legend()
 plt.show()
-
-
-    # plt.scatter(merged["precipitation"], merged["predicted"], c="blue", alpha=0.5, label="fleming" if i == 0 else None)
-
-        # current_max_observed = max(current_max_observed, merged["precipitation"].max())
-
-        # current_max_predicted = max(current_max_predicted, merged["predicted"].max())
-
-        # plt.scatter(merged["precipitation"], merged["predicted"], c="red", alpha=1, label="crespi" if i == 0 else None)
