@@ -28,7 +28,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import rasterio
-from build_daily_observations_geojson import build_daily_observations_geojson
+from build_daily_observations_geojson import (
+    build_daily_observations_geojson,
+)
 from context import RunContext
 from delete_all_from_folder import delete_all_from_folder
 from is_debugging import is_debugging
