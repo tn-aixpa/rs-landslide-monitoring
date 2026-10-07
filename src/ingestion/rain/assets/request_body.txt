@@ -1,0 +1,108 @@
+POST this to /api/data 
+{
+  "request_name": "you_want_what_now",
+  "reftime": {
+    "from": "2026-01-29T00:01:00.000Z",
+    "to": "2026-01-29T23:59:00.000Z"
+  },
+  "dataset_names": [
+    "open-trentino"
+  ],
+  "filters": {
+    "product": [
+      {
+        "code": "B13011",
+        "desc": "TOTAL PRECIPITATION / TOTAL WATER EQUIVALENT",
+        "active": true
+      }
+    ]
+  },
+  "output_format": "json",
+  "only_reliable": true,
+  "postprocessors": [
+    
+  ],
+  "force_obs_download": true
+}
+
+which responds with:
+
+{
+  "request_id": 5374222,
+  "task_id": "1afd8edb-64cf-425c-b8ec-6026282d4b30"
+}
+
+
+/api/requests
+
+
+[
+  {
+    "id": 5374222,
+    "name": "you_want_what_now",
+    "args": {
+      "filters": {
+        "product": [
+          {
+            "code": "B13011",
+            "desc": "TOTAL PRECIPITATION / TOTAL WATER EQUIVALENT",
+            "active": true
+          }
+        ]
+      },
+      "reftime": {
+        "to": "2026-01-29T23:59:00.000000Z",
+        "from": "2026-01-29T00:01:00.000000Z"
+      },
+      "only_reliable": true,
+      "output_format": "json",
+      "postprocessors": [],
+      "dataset_names": [
+        "open-trentino"
+      ]
+    },
+    "submission_date": "2026-10-05T15:06:05.674482",
+    "status": "PENDING",
+    "task_id": "1afd8edb-64cf-425c-b8ec-6026282d4b30",
+    "opendata": false
+  },
+  {
+    "id": 5373508,
+    "name": "testjson",
+    "args": {
+      "filters": {
+        "product": [
+          {
+            "code": "B13011",
+            "desc": "TOTAL PRECIPITATION / TOTAL WATER EQUIVALENT",
+            "active": true
+          }
+        ]
+      },
+      "reftime": {
+        "to": "2026-10-04T00:00:00.000000Z",
+        "from": "2026-10-03T00:00:00.000000Z"
+      },
+      "only_reliable": true,
+      "output_format": "json",
+      "dataset_names": [
+        "open-trentino"
+      ]
+    },
+    "submission_date": "2026-10-05T13:28:10.915629",
+    "status": "SUCCESS",
+    "task_id": "e853d976-6d4c-4bcd-b78f-1f304353a499",
+    "opendata": false,
+    "end_date": "2026-10-05T13:28:13.412641",
+    "fileoutput": "data-20261005T132812Z-e853d976-6d4c-4bcd-b78f-1f304353a499.json",
+    "filesize": 4586416
+  }
+]
+
+
+then after file download call
+DELETE /api/requests/{request_id}
+
+... Maybe check the list of requests and loop through them to bin off all of em in case of script death.
+
+Could also check that `/api/usage` doesn't exceed maximum.
