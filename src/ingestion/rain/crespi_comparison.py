@@ -20,9 +20,9 @@ TODO list:
 - Rework `grid` variable
 
 """
-
 import argparse
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -663,7 +663,7 @@ def main(
         monthly_climatology: np.ndarray,
         grid: dict,
     ):
-        logger = setup_logging()
+        logger = setup_logging() # Do this inside worker function too as it sets up its own context
         date = pd.Timestamp(date1)
         date_str = f"{date:%d/%m/%Y}"
         logger.info(f"Interpolating {date_str}")
@@ -671,19 +671,11 @@ def main(
         # Keep all station observations for the date (including 0 mm precip)
         daily_observations = observations[observations["date"] == date]
 
-        # TODO: Could check this against Crespi data
-        if (
-            len(daily_observations) == 0
-            or (daily_observations["precipitation"] == 0).all()
-        ):
-            logger.info(
-                f"Skipping output for {date_str} as day was observed completely dry"
-            )
+        if len(daily_observations) == 0 or (daily_observations["precipitation"] == 0).all():
+            logger.info(f"Skipping output for {date_str} as day was observed completely dry")
             return
 
-        daily_decay_parameters = optimize_daily_decay(
-            date, stations, daily_observations
-        )
+        daily_decay_parameters = optimize_daily_decay(date, stations, daily_observations)
         precipitation_valid_cells = interpolate_daily_precipitation_vectorized(
             daily_observations=daily_observations,
             stations=stations,
@@ -710,23 +702,15 @@ def main(
         output_path = rc.OUTPUT_DIRECTORY / f"fleming_{date_str}.tif"
 
         if np.all(np.isnan(precipitation_raster) | (precipitation_raster == 0)):
-            logger.info(
-                f"Skipping output for {date_str} as day evaluated to dry across grid"
-            )
+            logger.info(f"Skipping output for {date_str} as day evaluated to dry across grid")
         else:
             masked_precipitation_raster = rc.apply_mask_to_np_array(
                 precipitation_raster, grid["profile"]["transform"]
             )
 
             profile = grid["profile"].copy()
-            profile.update(
-                dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate"
-            )
-            with rasterio.open(
-                output_path,
-                "w",
-                **profile,
-            ) as dst:
+            profile.update(dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate")
+            with rasterio.open(output_path,"w",**profile) as dst:
                 dst.write(masked_precipitation_raster.astype(np.float32), 1)
 
             logger.info(f"Saved: {output_path}")
@@ -739,9 +723,7 @@ def main(
     ]
     unique_dates = np.sort(observations["date"].unique())
     if single_day is None:
-        logger.info(
-            f"Interpolating for {len(unique_dates)} dates between {run_context.interpolation_start_date} and {run_context.interpolation_end_date}"
-        )
+        logger.info(f"Interpolating for {len(unique_dates)} dates between {run_context.interpolation_start_date} and {run_context.interpolation_end_date}")
     else:
         single_day = parse_datetime(single_day)
         if single_day not in unique_dates:
@@ -749,13 +731,13 @@ def main(
         unique_dates = [single_day]
         daily_observations = observations[observations["date"] == single_day]
         single_day_date_str = single_day.strftime(rc.output_file_time_format)
-        geojson_output_path = (
-            rc.OUTPUT_DIRECTORY / f"fleming_{single_day_date_str}.geojson"
-        )
-        build_daily_observations_geojson(
-            geojson_output_path, daily_observations, stations
-        )
+        geojson_output_path = rc.OUTPUT_DIRECTORY / f"fleming_{single_day_date_str}.geojson"
 
+        build_daily_observations_geojson(geojson_output_path, daily_observations, stations)
+
+    logger.info("Deleting all previous daily outputs...")
+    delete_all_from_folder(str(rc.OUTPUT_DIRECTORY))
+    
     Parallel(n_jobs=N_JOBS, prefer=THREADING_PREFERENCE)(
         delayed(interpolate_single_day_worker)(
             date1=date,
@@ -809,6 +791,8 @@ if __name__ == "__main__":
         "--climatology-single-month",
         help="Debug option. Calculate climatology for a single month and then exit. 1 indexed",
     )
+    debug.add_argument("--province", choices=['trentino','bolzano'],help="If set, only calculate climateology and results for specified province")
+
 
     args = ap.parse_args()
     data_dir = Path(args.data_dir)
@@ -817,6 +801,7 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"{data_dir} does not exist!")
 
     run_context = RunContext(data_dir)
+    run_context.setup_boundary(args.province)
 
     run_context.interpolation_start_date = parse_datetime(args.interpolation_start_date)
     run_context.interpolation_end_date = parse_datetime(args.interpolation_end_date)

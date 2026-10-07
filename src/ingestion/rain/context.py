@@ -54,13 +54,6 @@ class RunContext:
         self.WRITE_CLIMATOLOGIES = True
         self.CLIMATOLOGY_OUTPUT_DIR = data_dir / "output" / "climatology"
 
-        self.BOUNDARY_DATASET = (
-            data_dir / "boundary_reprojected" / "boundary_reprojected.shp"
-        )
-
-        # TODO: move to static constructor
-        self.boundary_polygon_shapes = read_boundary_dataset(self.BOUNDARY_DATASET)
-
         self.output_file_time_format = "%d_%m_%Y"
 
         self.crespi_data_folder = data_dir / "crespi_data"
@@ -76,3 +69,17 @@ class RunContext:
             invert=False,
         )
         return np.ma.MaskedArray(np_array, mask_climatology_2d)
+
+    def setup_boundary(self, province: str | None = None):
+        self.observations_files = [self.OBSERVATIONS_PATH]
+        if province is None:
+            boundary_dataset = self.data_dir / "region_boundary_reprojected" / "boundary_reprojected.shp"
+            # Miss off bolzano and austria observations if just considering trentino.
+            self.observations_files = self.observations_files + [self.AU_OBSERVATIONS_PATH,self.BOLZANO_OBSERVATIONS_PATH]
+        elif province == 'trentino':
+            boundary_dataset = self.data_dir / "boundary_reprojected" / "boundary_reprojected.shp"
+        else:
+            raise ValueError(f"Province {province} was not a recognised option")
+        
+        self.boundary_polygon_shapes = read_boundary_dataset(boundary_dataset)
+
