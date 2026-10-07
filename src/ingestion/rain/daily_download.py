@@ -1,17 +1,15 @@
 '''
 Throwaway script to investigate meteohub data
 '''
-from typing import TYPE_CHECKING
-import os
-from dotenv import load_dotenv
-import pandas as pd
-
 import json
+import os
+import sys
 
+import pandas as pd
+import requests as r
 from build_storico_trentino_session import build_storico_trentino_session
-
-if __name__ == TYPE_CHECKING:
-    import requests as r
+from dotenv import load_dotenv
+from parse_storico_trentino_html import parse_storico_trentino_html
 
 '''
 Field name lookups taken from:
@@ -68,7 +66,6 @@ def _download_meteohub_daily():
 def download_bolzano_daily():
     # https://geoservices.buergernetz.bz.it/services/meteo/v1/timeseries?station_code=19850PG&sensor_code=Q&date_from=202501010000&date_to=202501010000
     pass
-    
 
 
 def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str, date_from: pd.Timestamp, date_to: pd.Timestamp):
@@ -86,18 +83,27 @@ def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str
     date_from_str = date_from.strftime("%d/%m/%Y")
     date_to_str = date_to.strftime("%d/%m/%Y")
     
-    daily_url = f"http://storico.meteotrentino.it/cgi/webhyd.pl?co={station_id}&v=10.50_10.50&vn=Pioggia%20(millimetri)%20Tot%20da%20Annale%20Idrologico&p=Altro,1,1,custom,1&o=Tabella,data&i=Giornaliera,Day,1&cat=rs&d1={date_from}&d2={date_to}&1791362644700"
+    daily_url = f"http://storico.meteotrentino.it/cgi/webhyd.pl?co={station_id}&v=10.50_10.50&vn=Pioggia%20(millimetri)%20Tot%20da%20Annale%20Idrologico&p=Altro,1,1,custom,1&o=Tabella,data&i=Giornaliera,Day,1&cat=rs&d1={date_from_str}&d2={date_to_str}&1791362644700"
+    print(daily_url)
+    # sys.exit(0)
     response = session.get(daily_url)
     response.raise_for_status()
-
+    print(response.content)
+    rows = parse_storico_trentino_html(station_id, response.content)
+    return rows
     
-    
 
 
-if __name__ == '__main__':
-    session = build_storico_trentino_session()
-    today = pd.Timestamp.now().normalize()
+def download_trentino_most_recent_meteorlogical_date(session, station_id):
+    '''
+    If time is 07/01/2025 00:01, then the data that we get will be for the 06/01/2025 09:00 record.
+    '''
+    today = pd.to_datetime("07/01/2025", format="%d/%m/%Y")
+    # today = pd.Timestamp.now().normalize()
     yesterday = today - pd.Timedelta(days=2) # To include yesterday's date from historical API, substract 2. Not a typo.
     
-    download_trentino_daily_meteorlogical_date(session, 't0179', yesterday, today)
+    return download_trentino_daily_meteorlogical_date(session, station_id, yesterday, today)
     
+session = build_storico_trentino_session()
+today = pd.DataFrame(download_trentino_most_recent_meteorlogical_date(session,'t0179'))
+print(today)

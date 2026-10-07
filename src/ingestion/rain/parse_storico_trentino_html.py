@@ -22,6 +22,10 @@ def parse_storico_trentino_html(station_id:str, response_bytes: bytes) -> list[d
         if time_cell is None:
             continue
 
+        parsed_time = time_cell.get_text(strip=True)
+        if parsed_time == '':
+            continue
+
         data_cells = tr.find_all("td", class_="tabledatacells")
 
         rows.append(
@@ -30,6 +34,6 @@ def parse_storico_trentino_html(station_id:str, response_bytes: bytes) -> list[d
                 "datetime": time_cell.get_text(strip=True),
                 "piogga(mm)": data_cells[0].get_text(strip=True),
                 "qual": data_cells[1].get_text(strip=True),
-            }
-        )
+            })
+        
     return rows

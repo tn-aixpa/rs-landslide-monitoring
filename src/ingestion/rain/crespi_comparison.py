@@ -785,7 +785,7 @@ if __name__ == "__main__":
     )
     debug.add_argument(
         "--single-day",
-        help="Debug option. Use this if you want to interpolate only a single day of output",
+        help="Debug option. Use this if you want to interpolate only a single day of output. Format dd/mm/yyyy",
     )
     debug.add_argument(
         "--climatology-single-month",
