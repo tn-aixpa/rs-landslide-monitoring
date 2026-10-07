@@ -37,6 +37,7 @@ Abbiamo usato quella di Copernicus con risoluzione di 30m.
 
 ### How to download Meteohub data
 
+The main URL is the faith inspiring: https://meteohub.agenziaitaliameteo.it:7777/#/
 POST this to /api/data 
 ```json
 {
