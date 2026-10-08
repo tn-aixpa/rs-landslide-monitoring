@@ -1,15 +1,18 @@
 '''
 Throwaway script to investigate meteohub data
 '''
+import argparse
 import json
 import os
-import sys
+from pathlib import Path
 
 import pandas as pd
 import requests as r
-from build_storico_trentino_session import build_storico_trentino_session
+from build_storico_trentino_session import build_buergernetz_session, build_storico_trentino_session
+from context import RunContext
 from dotenv import load_dotenv
 from parse_storico_trentino_html import parse_storico_trentino_html
+from read_station_data import read_station_data
 
 '''
 Field name lookups taken from:
@@ -21,18 +24,18 @@ B06001 = 'LONGITUDE'
 B13011 = 'TOTAL_PRECIPITATION_TOTAL_WATER_EQUIVALENT'
 
 
-
+date_time_format = "%d/%m/%Y"
 
 
 def _download_meteohub_daily():
     """_summary_
-
+    This function could be removed; 
     Raises:
         NotImplementedError: _description_
     """
     raise NotImplementedError("See README.md for implementation details")
     load_dotenv()
-    response = r.post("https://meteohub.agenziaitaliameteo.it/auth/login", json={'username':'jfleming@fbk.eu','password':os.environ['PASSWORD']})
+    response = r.post("https://meteohub.agenziaitaliameteo.it/auth/login", json={'username':os.environ['USERNAME'],'password':os.environ['PASSWORD']})
     print(response.status_code)
     print(response.json())
 
@@ -63,9 +66,14 @@ def _download_meteohub_daily():
 
     df.to_csv('hello_world.csv',index=False)
 
-def download_bolzano_daily():
-    # https://geoservices.buergernetz.bz.it/services/meteo/v1/timeseries?station_code=19850PG&sensor_code=Q&date_from=202501010000&date_to=202501010000
-    pass
+def download_bolzano_daily(session: r.Session, station_id: str, date_from: pd.Timestamp, date_to: pd.Timestamp):
+    # All times here are expressed in CET, and are inclusive?
+    date_from_str = date_from.replace(hour=9).strftime("%Y%m%d%H%M")
+    date_to_str = date_to.replace(hour=9).strftime("%Y%m%d%H%M")
+
+    # Sensor code N = rain in mm
+    url = f"https://geoservices.buergernetz.bz.it/services/meteo/v1/timeseries?station_code={station_id}&sensor_code=N&date_from={date_from_str}&date_to={date_to_str}"
+    print(url)
 
 
 def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str, date_from: pd.Timestamp, date_to: pd.Timestamp):
@@ -84,8 +92,6 @@ def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str
     date_to_str = date_to.strftime("%d/%m/%Y")
     
     daily_url = f"http://storico.meteotrentino.it/cgi/webhyd.pl?co={station_id}&v=10.50_10.50&vn=Pioggia%20(millimetri)%20Tot%20da%20Annale%20Idrologico&p=Altro,1,1,custom,1&o=Tabella,data&i=Giornaliera,Day,1&cat=rs&d1={date_from_str}&d2={date_to_str}&1791362644700"
-    print(daily_url)
-    # sys.exit(0)
     response = session.get(daily_url)
     response.raise_for_status()
     print(response.content)
@@ -96,14 +102,42 @@ def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str
 
 def download_trentino_most_recent_meteorlogical_date(session, station_id):
     '''
-    If time is 07/01/2025 00:01, then the data that we get will be for the 06/01/2025 09:00 record.
+    If time is 07/01/2025 00:01, then the data that we get will be for the 06/01/2025 09:00 record. 
+    So make sure to schedule this to run _after_ 9:00 of each day
     '''
     today = pd.to_datetime("07/01/2025", format="%d/%m/%Y")
     # today = pd.Timestamp.now().normalize()
     yesterday = today - pd.Timedelta(days=2) # To include yesterday's date from historical API, substract 2. Not a typo.
     
-    return download_trentino_daily_meteorlogical_date(session, station_id, yesterday, today)
+    x = download_trentino_daily_meteorlogical_date(session, station_id, yesterday, today)
+    df = pd.DataFrame(x)
     
-session = build_storico_trentino_session()
-today = pd.DataFrame(download_trentino_most_recent_meteorlogical_date(session,'t0179'))
-print(today)
+    to_match = f"09:00:00 {today.strftime('%d/%m/%Y')}"
+    df = df[df['datetime'] == to_match]
+    return df.iloc[0].to_dict()
+
+
+if __name__ == '__main__':
+    # ap = argparse.ArgumentParser()
+    # ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+    
+    # args = ap.parse_args()
+    # data_dir = Path(args.data_dir)
+    # context = RunContext(data_dir)
+    
+    # stations = read_station_data(context.STATIONS_PATH)
+    # trentino_stations = stations[stations['provincia'] == 'tn']
+    # session = build_storico_trentino_session()
+    # for station_id in list(trentino_stations['station_id']):
+    #     today = pd.DataFrame(download_trentino_most_recent_meteorlogical_date(session,station_id))
+    
+    # Uses special list
+    bolzano_stations = pd.read_csv("/home/jfleming/Documents/rs-landslide-monitoring/data/daily_stations_alto_adige_filtered_reprojected.csv")
+    bolzano_session = build_buergernetz_session()
+
+
+    today = pd.to_datetime("01/07/2025", format="%d/%m/%Y")
+    yesterday = today - pd.Timedelta(days=1)
+    for station_id in list(bolzano_stations['station_id']):
+        download_bolzano_daily(bolzano_session, station_id, yesterday,today)
+    
