@@ -21,10 +21,10 @@ data_dir = Path(args.data_dir)
 
 run_context = RunContext(data_dir)
 
-stations = read_station_data(run_context.STATIONS_PATH)
+stations = read_station_data(run_context.historical_stations_path)
 
 observations = read_observation_data(
-    [run_context.OBSERVATIONS_PATH, run_context.BOLZANO_OBSERVATIONS_PATH],
+    [run_context.historical_trentino_observations_path, run_context.historical_bolzano_observations_path],
     run_context.reference_start,
     run_context.reference_end,
 )
@@ -60,7 +60,7 @@ for i,crespi_dataset in enumerate(all_crespi_files):
         plt.scatter(merged["precipitation"], merged["predicted"], c="red", alpha=1, label="crespi" if i == 0 else None)
 
 
-all_fleming_files = glob(str(run_context.OUTPUT_DIRECTORY) + "/*.tif")
+all_fleming_files = glob(str(run_context.output_directory) + "/*.tif")
 
 for i,fleming_dataset in enumerate(all_fleming_files):
     with rasterio.open(fleming_dataset) as crespi_src:

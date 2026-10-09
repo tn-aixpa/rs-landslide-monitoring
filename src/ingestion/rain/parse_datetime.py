@@ -32,6 +32,7 @@ def parse_datetime(
             f"{to_test} does not match format a known timestamp format"
         )
 
+    # TODO: switch to pd.normalize?
     if isinstance(temp, pd.Series):
         temp = temp.dt.floor("D")  # strip off timestamp which is useless and hurts brain
     else:

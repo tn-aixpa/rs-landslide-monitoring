@@ -1,3 +1,6 @@
+'''
+Only used for crespi comparison, feel free to ignore.
+'''
 import argparse
 import os
 from pathlib import Path

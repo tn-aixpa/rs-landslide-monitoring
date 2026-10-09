@@ -25,7 +25,7 @@ output_path = Path(data_dir / "crespi_data")
 run_context = RunContext(data_dir)
 
 # Use stations as comparison points, need to pick abitrary points
-stations = read_station_data(run_context.STATIONS_PATH)
+stations = read_station_data(run_context.historical_stations_path)
 
 all_crespi_files = glob(str(run_context.crespi_data_folder) + "/*.tif")
 crespi_paths = [Path(file) for file in all_crespi_files]
@@ -42,7 +42,7 @@ for crespi_dataset in crespi_paths:
     crespi_stem = Path(crespi_dataset).stem
     date_str = crespi_stem[7:].replace("_", "/")
     time_stamp = parse_datetime(date_str)
-    fleming_file_path = run_context.OUTPUT_DIRECTORY / f"fleming_{crespi_date}.tif"
+    fleming_file_path = run_context.output_directory / f"fleming_{crespi_date}.tif"
 
     fleming_series = []
     if not fleming_file_path.exists():

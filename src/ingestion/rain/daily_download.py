@@ -149,29 +149,31 @@ def download_trentino_most_recent_meteorlogical_date(session, station_id):
     return df.iloc[0].to_dict()
 
 
-if __name__ == '__main__':
-    # ap = argparse.ArgumentParser()
-    # ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+def time_range_download(data_dir:Path, date_from: pd.Timestamp, date_to:pd.Timestamp) -> pd.DataFrame:
+    context = RunContext(data_dir)
     
-    # args = ap.parse_args()
-    # data_dir = Path(args.data_dir)
-    # context = RunContext(data_dir)
-    
-    # stations = read_station_data(context.STATIONS_PATH)
-    # trentino_stations = stations[stations['provincia'] == 'tn']
-    # session = build_storico_trentino_session()
-    # for station_id in list(trentino_stations['station_id']):
-    #     today = pd.DataFrame(download_trentino_most_recent_meteorlogical_date(session,station_id))
+    stations = read_station_data(context.historical_stations_path)
+    trentino_stations = stations[stations['provincia'] == 'tn']
+    session = build_storico_trentino_session()
+    for station_id in list(trentino_stations['station_id']):
+        today = pd.DataFrame(download_trentino_most_recent_meteorlogical_date(session,station_id))
     
     # Uses special list
-    bolzano_stations = pd.read_csv("/home/jfleming/Documents/rs-landslide-monitoring/data/daily_stations_alto_adige_filtered_reprojected.csv")
+    bolzano_stations = pd.read_csv(context.bolzano_daily_stations_path)
     bolzano_session = build_buergernetz_session()
 
-
+    # TODO: change to using argument.
     today = pd.to_datetime("01/07/2025", format="%d/%m/%Y")
     yesterday = today - pd.Timedelta(days=1)
     for station_id in list(bolzano_stations['station_id']):
-        print(station_id)
-        result = download_bolzano_date_range(bolzano_session, station_id, yesterday,today)
-        print(result)
-        break
+        result = download_bolzano_date_range(bolzano_session, station_id, yesterday, today)
+
+
+    raise NotImplementedError("Implement rest of this")
+# if __name__ == '__main__':
+#     ap = argparse.ArgumentParser()
+#     ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+#     ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+#     args = ap.parse_args()
+#     data_dir = Path(args.data_dir)
+#     time_range_download(data_dir)
