@@ -5,14 +5,16 @@ import pandas as pd
 from parse_datetime import parse_datetime
 
 BAD_OBSERVATION_CODES = [
+    70, #dato stimato (come da Annale Idrologico) 
+    76, #dato interpolato (come da Annale Idrologico)
     90,  # Delayed because of snow
     140,  # Uncertain data
+    151, # dato mancante
+    255 # dato mancante
 ]
 
 
-def read_observation_data(
-    observation_files: list[Path], reference_start=None, reference_end=None
-) -> pd.DataFrame:
+def read_observation_data(observation_files: list[Path], reference_start=None, reference_end=None) -> pd.DataFrame:
     """
     Austrian + swiss observation data are kept in seperate files otherwise too big for MS Excel,
     so merge them in here instead.
@@ -48,20 +50,19 @@ def read_observation_data(
         df_list.append(observations)
 
     observations = pd.concat(df_list)
-    observations = observations.dropna(subset="piogga(mm)")
-
-    observations = observations[
-        ~observations["qual"].isin(BAD_OBSERVATION_CODES)
-    ]  # drop bad data rows
-
-    observations["precipitation"] = pd.to_numeric(
-        observations["piogga(mm)"], errors="coerce"
-    )
 
     if reference_start:
         observations = observations[observations["date"] >= reference_start]
     if reference_end:
         observations = observations[observations["date"] <= reference_end]
+
+    return post_process_trentino_observations(observations)
+
+
+def post_process_trentino_observations(observations: pd.DataFrame) -> pd.DataFrame:
+    observations = observations.dropna(subset="piogga(mm)")
+    observations = observations[~observations["qual"].isin(BAD_OBSERVATION_CODES)]  # drop bad data rows
+    observations["precipitation"] = pd.to_numeric(observations["piogga(mm)"])
 
     observations["station_id"] = observations["station_id"].astype("str")
     return observations.drop(["piogga(mm)", "datetime"], axis=1)

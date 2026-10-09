@@ -15,6 +15,7 @@ from build_storico_trentino_session import (
 from context import RunContext
 from dotenv import load_dotenv
 from parse_storico_trentino_html import parse_storico_trentino_html
+from read_observation_data import post_process_trentino_observations
 from read_station_data import read_station_data
 
 '''
@@ -69,7 +70,7 @@ def _download_meteohub_daily():
 
     df.to_csv('hello_world.csv',index=False)
 
-def download_bolzano_date_range(session: r.Session, station_id: str, date_from: pd.Timestamp, date_to: pd.Timestamp):
+def download_bolzano_date_range(session: r.Session, station_id: str, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
     '''
     This does both the download and the aggregation to keep it consistent with response from trentino's service
     '''
@@ -103,12 +104,13 @@ def download_bolzano_date_range(session: r.Session, station_id: str, date_from: 
     result = result[:-1]
     result['DATE'] = result['DATE'].dt.normalize() # Strip off time, not used in meterological time format
     result['station_id'] = station_id
+    result['qual'] = 1
     # Match column names from trentino
-    result = result.rename(columns={"DATE": "timestamp", "VALUE": "piogga(mm)"})
+    result = result.rename(columns={"DATE": "date", "VALUE": "precipitation"})
     return result
 
 
-def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str, date_from: pd.Timestamp, date_to: pd.Timestamp):
+def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
     """
     Uses meterological date system (9am-9am).
     Keep flexible date range in case of platform death/ outage requiring us to look back further in time.
@@ -126,26 +128,24 @@ def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str
     daily_url = f"http://storico.meteotrentino.it/cgi/webhyd.pl?co={station_id}&v=10.50_10.50&vn=Pioggia%20(millimetri)%20Tot%20da%20Annale%20Idrologico&p=Altro,1,1,custom,1&o=Tabella,data&i=Giornaliera,Day,1&cat=rs&d1={date_from_str}&d2={date_to_str}&1791362644700"
     response = session.get(daily_url)
     response.raise_for_status()
-    print(response.content)
-    rows = parse_storico_trentino_html(station_id, response.content)
+    
+    rows = pd.DataFrame(parse_storico_trentino_html(station_id, response.content))
+    rows = post_process_trentino_observations(rows)
     return rows
     
 
 
-def download_trentino_most_recent_meteorlogical_date(session, station_id):
+def download_trentino_most_recent_meteorlogical_date(session, station_id, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
     '''
     If time is 07/01/2025 00:01, then the data that we get will be for the 06/01/2025 09:00 record. 
     So make sure to schedule this to run _after_ 9:00 of each day
     '''
-    today = pd.to_datetime("07/01/2025", format="%d/%m/%Y")
-    # today = pd.Timestamp.now().normalize()
-    yesterday = today - pd.Timedelta(days=2) # To include yesterday's date from historical API, substract 2. Not a typo.
     
-    x = download_trentino_daily_meteorlogical_date(session, station_id, yesterday, today)
-    df = pd.DataFrame(x)
+    df = download_trentino_daily_meteorlogical_date(session, station_id, date_from, date_to)
     
-    to_match = f"09:00:00 {today.strftime('%d/%m/%Y')}"
-    df = df[df['datetime'] == to_match]
+    
+    # to_match = f"09:00:00 {today.strftime('%d/%m/%Y')}"
+    # df = df[df['datetime'] == to_match]
     return df.iloc[0].to_dict()
 
 
@@ -170,6 +170,7 @@ def time_range_download(data_dir:Path, date_from: pd.Timestamp, date_to:pd.Times
 
 
     raise NotImplementedError("Implement rest of this")
+
 # if __name__ == '__main__':
 #     ap = argparse.ArgumentParser()
 #     ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")

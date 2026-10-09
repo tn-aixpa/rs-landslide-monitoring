@@ -37,6 +37,7 @@ from delete_all_from_folder import delete_all_from_folder
 from interpolate_single_day_worker import interpolate_single_day_worker
 from is_debugging import is_debugging
 from joblib import Parallel, delayed
+from load_dem import load_dem
 from parse_datetime import parse_datetime
 from read_observation_data import read_observation_data
 from read_station_data import read_station_data
@@ -132,68 +133,15 @@ def fast_parallel_parameter_search(
     return optimized_decay_params
 
 
-def load_dem(path):
-    """
-
-    Setup the grid based on the smoothed DEM
-
-    Args:
-        path (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    with rasterio.open(path) as src:
-        elevation = src.read(1).astype(float)
-        profile = src.profile.copy()
-        src_nodata = src.nodata
-        transform = src.transform
-        crs = src.crs
-
-    if src_nodata is not None:
-        valid_mask = elevation != src_nodata
-        elevation[~valid_mask] = np.nan
-    else:
-        valid_mask = np.isfinite(elevation)
-
-    rows, cols = np.indices(elevation.shape)
-
-    x, y = rasterio.transform.xy(
-        transform,
-        rows,
-        cols,
-        offset="center",
-    )
-
-    # rasterio may return flattened coordinate arrays.
-    # Restore them to the same 2D shape as the DEM.
-    x = np.asarray(x, dtype=float).reshape(elevation.shape)
-    y = np.asarray(y, dtype=float).reshape(elevation.shape)
-
-    return {
-        "elevation_2d": elevation,
-        "valid_mask_2d": valid_mask,
-        "x_2d": x,
-        "y_2d": y,
-        # Flattened valid cells used by interpolation.
-        "x": x[valid_mask],
-        "y": y[valid_mask],
-        "elevation": elevation[valid_mask],
-        "shape": elevation.shape,
-        "transform": transform,
-        "crs": crs,
-        "profile": profile,
-        "nodata": src_nodata,
-    }
 
 
-def smooth_elevation(
-    rc: RunContext, grid, radius=SMOOTHING_RADIUS, half_distance=SMOOTHING_HALF_DISTANCE
-):
+def smooth_elevation(rc: RunContext, grid, radius=SMOOTHING_RADIUS, half_distance=SMOOTHING_HALF_DISTANCE):
     """
     Cacky implementation of smoothing a DEM - don't use a kernel, use brush-like smoothing using
     inefficient tree-structure.
     Use parameters from Crespi paper for smoothing
+
+    Crucially, this process does not reduce the resolution of the DEM, that step is done manually beforehand.
     """
     x = grid["x"]
     y = grid["y"]
@@ -212,11 +160,11 @@ def smooth_elevation(
 
         # Do not mask here; stations in Austria need their elevation too
         # masked_smoothed_elevation_2d = rc.apply_mask_to_np_array(smoothed_elevation_2d, profile['transform'])
-        with rasterio.open(rc.SMOOTHED_DEM_PATH, "w", **profile) as dst:
+        with rasterio.open(rc.smoothed_dem_path, "w", **profile) as dst:
             dst.write(smoothed_elevation_2d, 1)
 
     def reload_smoothed():
-        with rasterio.open(rc.SMOOTHED_DEM_PATH) as src:
+        with rasterio.open(rc.smoothed_dem_path) as src:
             smoothed_elevation_2d = src.read(1)
             smoothed_nodata = src.nodata
             if smoothed_nodata is not None:
@@ -224,7 +172,7 @@ def smooth_elevation(
         # Convert back to the same flattened valid-cell structure used by the interpolation code.
         grid["smoothed_elevation"] = smoothed_elevation_2d[grid["valid_mask_2d"]]
 
-    if os.path.exists(rc.SMOOTHED_DEM_PATH):
+    if os.path.exists(rc.smoothed_dem_path):
         logger.info("Smoothed DEM found, reloading...")
         return reload_smoothed()
 
@@ -306,13 +254,13 @@ def build_or_load_precipitation_climatology(
     climatology = np.empty((12, n_cells), dtype=np.float32)
 
     climatology_paths = [
-        rc.CLIMATOLOGY_OUTPUT_DIR / f"precipitation_climatology_month_{month:02d}.tif"
+        rc.climatology_output_dir / f"precipitation_climatology_month_{month:02d}.tif"
         for month in range(1, 13)
     ]
 
     if clean:
         logger.info("Cleaning old precipitation climatology")
-        delete_all_from_folder(str(rc.CLIMATOLOGY_OUTPUT_DIR))
+        delete_all_from_folder(str(rc.climatology_output_dir))
 
     if all(os.path.exists(path) for path in climatology_paths):
         logger.info("Loading existing monthly climatology grids...")
@@ -385,7 +333,7 @@ def build_or_load_precipitation_climatology(
 
         climatology[month - 1] = np.maximum(0.0, pred).astype(np.float32)
 
-    os.makedirs(rc.CLIMATOLOGY_OUTPUT_DIR, exist_ok=True)
+    os.makedirs(rc.climatology_output_dir, exist_ok=True)
     profile = grid["profile"].copy()
     profile.update(
         dtype=rasterio.float32,
@@ -402,7 +350,7 @@ def build_or_load_precipitation_climatology(
         climatology_2d = np.full(grid["shape"], np.nan, dtype=np.float32)
         climatology_2d[grid["valid_mask_2d"]] = climatology[month]
         output_path = (
-            rc.CLIMATOLOGY_OUTPUT_DIR
+            rc.climatology_output_dir
             / f"precipitation_climatology_month_{month + 1:02d}.tif"
         )
 
@@ -420,7 +368,7 @@ def build_or_load_precipitation_climatology(
             dst.write(masked_climatology_2d, 1)
 
     with rasterio.open(
-        rc.CLIMATOLOGY_OUTPUT_DIR / "summed_climatology.tif", "w", **profile
+        rc.climatology_output_dir / "summed_climatology.tif", "w", **profile
     ) as dst:
         dst.write(summed_climatology, 1)
 
@@ -433,17 +381,17 @@ def main(
     climatology_single_month: str | None = None,
     clean=False,
 ):
-    os.makedirs(rc.OUTPUT_DIRECTORY, exist_ok=True)
+    os.makedirs(rc.output_directory, exist_ok=True)
 
     logger.info("Loading DEM...")
-    grid = load_dem(rc.DEM_PATH)
+    grid = load_dem(rc.dem_path)
 
     smooth_elevation(rc, grid)
 
     logger.info("Loading station data...")
-    stations = read_station_data(rc.STATIONS_PATH, run_context.SMOOTHED_DEM_PATH)
+    stations = read_station_data(rc.historical_stations_path, run_context.smoothed_dem_path)
     observations = read_observation_data(
-        rc.observations_files, rc.reference_start, rc.reference_end
+        rc.historical_observations_files, rc.reference_start, rc.reference_end
     )
     logger.info("Calculating monthly normals...")
 
@@ -487,12 +435,12 @@ def main(
         unique_dates = [single_day]
         daily_observations = observations[observations["date"] == single_day]
         single_day_date_str = single_day.strftime(rc.output_file_time_format)
-        geojson_output_path = rc.OUTPUT_DIRECTORY / f"fleming_{single_day_date_str}.geojson"
+        geojson_output_path = rc.output_directory / f"fleming_{single_day_date_str}.geojson"
 
         build_daily_observations_geojson(geojson_output_path, daily_observations, stations)
 
     logger.info("Deleting all previous daily outputs...")
-    delete_all_from_folder(str(rc.OUTPUT_DIRECTORY))
+    delete_all_from_folder(str(rc.output_directory))
     
     Parallel(n_jobs=N_JOBS, prefer=THREADING_PREFERENCE)(
         delayed(interpolate_single_day_worker)(

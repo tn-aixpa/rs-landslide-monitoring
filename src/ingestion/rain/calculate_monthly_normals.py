@@ -3,8 +3,8 @@ import pandas as pd
 
 def calculate_monthly_normals(observations: pd.DataFrame) -> pd.DataFrame:
     """
-    Calculate mean monthly precipitation totals over the
-    reference period.
+    Calculate mean monthly precipitation totals over the reference period.
+    Make sure you pass the HISTORICAL observations rather than the most recent daily observations.
     """
 
     observations = observations.copy()
