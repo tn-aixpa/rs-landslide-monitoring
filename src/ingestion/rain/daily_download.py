@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pandas as pd
 import requests as r
-from build_storico_trentino_session import build_buergernetz_session, build_storico_trentino_session
+from build_storico_trentino_session import (
+    build_buergernetz_session,
+    build_storico_trentino_session,
+)
 from context import RunContext
 from dotenv import load_dotenv
 from parse_storico_trentino_html import parse_storico_trentino_html
@@ -66,14 +69,43 @@ def _download_meteohub_daily():
 
     df.to_csv('hello_world.csv',index=False)
 
-def download_bolzano_daily(session: r.Session, station_id: str, date_from: pd.Timestamp, date_to: pd.Timestamp):
+def download_bolzano_date_range(session: r.Session, station_id: str, date_from: pd.Timestamp, date_to: pd.Timestamp):
+    '''
+    This does both the download and the aggregation to keep it consistent with response from trentino's service
+    '''
     # All times here are expressed in CET, and are inclusive?
     date_from_str = date_from.replace(hour=9).strftime("%Y%m%d%H%M")
     date_to_str = date_to.replace(hour=9).strftime("%Y%m%d%H%M")
 
     # Sensor code N = rain in mm
     url = f"https://geoservices.buergernetz.bz.it/services/meteo/v1/timeseries?station_code={station_id}&sensor_code=N&date_from={date_from_str}&date_to={date_to_str}"
-    print(url)
+    response = session.get(url)
+    response.raise_for_status()
+    bolzano_daily_observations = pd.DataFrame(response.json())
+    # bolzano_daily_observations = pd.read_json('/home/jfleming/Documents/rs-landslide-monitoring/test.json',convert_dates=False)
+
+    bolzano_daily_observations["DATE"] = pd.to_datetime(bolzano_daily_observations["DATE"].str.replace(":00CEST", "", regex=False))
+    
+    result = (
+        bolzano_daily_observations.groupby(
+            pd.Grouper(
+                key="DATE",
+                freq="1D",
+                offset="9h",
+                closed="left",  # Includes 9am 06/01, excludes 9am 07/01
+                label="right",  # Labels the period with 07/01
+            )
+        )["VALUE"]
+        .sum()
+        .reset_index()
+    )
+
+    result = result[:-1]
+    result['DATE'] = result['DATE'].dt.normalize() # Strip off time, not used in meterological time format
+    result['station_id'] = station_id
+    # Match column names from trentino
+    result = result.rename(columns={"DATE": "timestamp", "VALUE": "piogga(mm)"})
+    return result
 
 
 def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str, date_from: pd.Timestamp, date_to: pd.Timestamp):
@@ -139,5 +171,7 @@ if __name__ == '__main__':
     today = pd.to_datetime("01/07/2025", format="%d/%m/%Y")
     yesterday = today - pd.Timedelta(days=1)
     for station_id in list(bolzano_stations['station_id']):
-        download_bolzano_daily(bolzano_session, station_id, yesterday,today)
-    
+        print(station_id)
+        result = download_bolzano_date_range(bolzano_session, station_id, yesterday,today)
+        print(result)
+        break
