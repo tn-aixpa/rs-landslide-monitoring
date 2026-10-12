@@ -36,16 +36,13 @@ def read_observation_data(observation_files: list[Path], reference_start=None, r
     df_list = []
 
     for observations_file in observation_files:
-        observations = pd.read_csv(
-            observations_file, dtype={"piogga(mm)": np.float32, "qual": np.int16}
-        )
+        observations = pd.read_csv(observations_file, dtype={"piogga(mm)": np.float32, "qual": np.int16}
+    )
 
         observations["date"] = parse_datetime(observations["datetime"])
-
+        
         if len(df_list) != 0 and set(observations) != set(df_list[0]):
-            raise ValueError(
-                f"Column mismatch; could not merge observations file at {observations_file}"
-            )
+            raise ValueError(f"Column mismatch; could not merge observations file at {observations_file}")
 
         df_list.append(observations)
 
@@ -61,8 +58,12 @@ def read_observation_data(observation_files: list[Path], reference_start=None, r
 
 def post_process_trentino_observations(observations: pd.DataFrame) -> pd.DataFrame:
     observations = observations.dropna(subset="piogga(mm)")
+    
+    observations["qual"] = observations["qual"].astype('int')
     observations = observations[~observations["qual"].isin(BAD_OBSERVATION_CODES)]  # drop bad data rows
     observations["precipitation"] = pd.to_numeric(observations["piogga(mm)"])
 
     observations["station_id"] = observations["station_id"].astype("str")
-    return observations.drop(["piogga(mm)", "datetime"], axis=1)
+    #datetime col is the raw, unparsed string version from API.
+    #qual not needed after this point 
+    return observations.drop(["piogga(mm)", "datetime", "qual"], axis=1)

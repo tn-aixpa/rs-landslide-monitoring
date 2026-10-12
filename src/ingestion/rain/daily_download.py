@@ -14,6 +14,7 @@ from build_storico_trentino_session import (
 )
 from context import RunContext
 from dotenv import load_dotenv
+from parse_datetime import parse_datetime
 from parse_storico_trentino_html import parse_storico_trentino_html
 from read_observation_data import post_process_trentino_observations
 from read_station_data import read_station_data
@@ -114,13 +115,23 @@ def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str
     """
     Uses meterological date system (9am-9am).
     Keep flexible date range in case of platform death/ outage requiring us to look back further in time.
-    
+    There is a bug with the trentino portal (which runs on the hydstra server software ); if you pass in 
+    one single date (e.g. 17/01/2026), keeping the `date_from` and `date_to` the same, it will 400. Even
+    though you just want the data for 17/01/2026, you must specify more than one day to constitute a range.
+
+
     Args:
         session (r.Session): _description_
         station_id (str): _description_
         date_from (pd.Timestamp): _description_
         date_to (pd.Timestamp): _description_
     """
+
+    hydstra_bug_workaround_flag = False
+    # Workaround for bug in hydstra server when you just want one day
+    if date_from == date_to:
+        date_from = date_from - pd.Timedelta(days = 1)
+        hydstra_bug_workaround_flag = True
 
     date_from_str = date_from.strftime("%d/%m/%Y")
     date_to_str = date_to.strftime("%d/%m/%Y")
@@ -130,34 +141,28 @@ def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str
     response.raise_for_status()
     
     rows = pd.DataFrame(parse_storico_trentino_html(station_id, response.content))
+    rows["date"] = parse_datetime(rows["datetime"])
     rows = post_process_trentino_observations(rows)
+
+    if hydstra_bug_workaround_flag:
+        rows = rows[rows['date'] == date_to]
     return rows
-    
 
-
-def download_trentino_most_recent_meteorlogical_date(session, station_id, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
+def time_range_download(data_dir:Path, date_from: pd.Timestamp, date_to:pd.Timestamp) -> pd.DataFrame:
     '''
     If time is 07/01/2025 00:01, then the data that we get will be for the 06/01/2025 09:00 record. 
     So make sure to schedule this to run _after_ 9:00 of each day
     '''
-    
-    df = download_trentino_daily_meteorlogical_date(session, station_id, date_from, date_to)
-    
-    
-    # to_match = f"09:00:00 {today.strftime('%d/%m/%Y')}"
-    # df = df[df['datetime'] == to_match]
-    return df.iloc[0].to_dict()
-
-
-def time_range_download(data_dir:Path, date_from: pd.Timestamp, date_to:pd.Timestamp) -> pd.DataFrame:
     context = RunContext(data_dir)
     
     stations = read_station_data(context.historical_stations_path)
     trentino_stations = stations[stations['provincia'] == 'tn']
     session = build_storico_trentino_session()
     for station_id in list(trentino_stations['station_id']):
-        today = pd.DataFrame(download_trentino_most_recent_meteorlogical_date(session,station_id))
-    
+        print(f"Downloading trento station: {station_id}")
+        trento_result = pd.DataFrame(download_trentino_daily_meteorlogical_date(session,station_id,date_from,date_to))
+        
+        print(trento_result)
     # Uses special list
     bolzano_stations = pd.read_csv(context.bolzano_daily_stations_path)
     bolzano_session = build_buergernetz_session()
@@ -171,10 +176,11 @@ def time_range_download(data_dir:Path, date_from: pd.Timestamp, date_to:pd.Times
 
     raise NotImplementedError("Implement rest of this")
 
-# if __name__ == '__main__':
-#     ap = argparse.ArgumentParser()
-#     ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-#     ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-#     args = ap.parse_args()
-#     data_dir = Path(args.data_dir)
-#     time_range_download(data_dir)
+if __name__ == '__main__':
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+    args = ap.parse_args()
+    data_dir = Path(args.data_dir)
+    date_to = pd.to_datetime("17/12/2025", format='%d/%m/%Y')
+    date_from = date_to #- pd.Timedelta(days = 1)
+    time_range_download(data_dir, date_from, date_to)

@@ -49,6 +49,7 @@ if __name__ == '__main__':
     
     daily_observations_df = time_range_download(data_dir, yesterday, today)
     run_context = RunContext(data_dir)
+    # Historical observations are used to calculate daily anomaly. Meterological concept used for this model.
     historical_observations = read_observation_data(run_context.historical_observations_files)
 
     stations_df = read_station_data(run_context.historical_stations_path, run_context.smoothed_dem_path)
