@@ -2,22 +2,20 @@
 Throwaway script to investigate meteohub data
 '''
 import argparse
+import io
 import json
 import os
 from pathlib import Path
 
 import pandas as pd
 import requests as r
-from build_storico_trentino_session import (
-    build_buergernetz_session,
-    build_storico_trentino_session,
-)
+from build_storico_trentino_session import build_resilient_session
+from constants import TIME_ZONE
 from context import RunContext
 from dotenv import load_dotenv
 from parse_datetime import parse_datetime
 from parse_storico_trentino_html import parse_storico_trentino_html
 from read_observation_data import post_process_trentino_observations
-from read_station_data import read_station_data
 
 '''
 Field name lookups taken from:
@@ -71,37 +69,54 @@ def _download_meteohub_daily():
 
     df.to_csv('hello_world.csv',index=False)
 
-def download_bolzano_date_range(session: r.Session, station_id: str, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
+
+def group_by_day(df: pd.DataFrame, date_column_name:str, value_column_name: str, group_by_extras: list[str] | None = None, historical_meterological_format = False):
+
+    offset_amount = None
+    label = 'left'
+    if historical_meterological_format:
+        offset_amount = "9h"
+        label = 'right'
+
+    gg = [pd.Grouper(key=date_column_name,freq="1D",offset=offset_amount,closed="left", label=label)]
+    if group_by_extras is not None:
+        gg = gg + group_by_extras
+
+    return (
+        df.groupby(gg)[value_column_name]
+        .sum()
+        .reset_index()
+    )
+
+
+def download_bolzano_date_range(session: r.Session, station_id: str, date_from: pd.Timestamp, date_to: pd.Timestamp, historical_meterological_format = False) -> pd.DataFrame:
     '''
     This does both the download and the aggregation to keep it consistent with response from trentino's service
     '''
     # All times here are expressed in CET, and are inclusive?
-    date_from_str = date_from.replace(hour=9).strftime("%Y%m%d%H%M")
-    date_to_str = date_to.replace(hour=9).strftime("%Y%m%d%H%M")
+    if historical_meterological_format:
+        date_from = date_from.replace(hour=9)
+        date_to = date_to.replace(hour=9)
+
+    date_from_str = date_from.strftime("%Y%m%d%H%M")
+    date_to_str = date_to.strftime("%Y%m%d%H%M")
 
     # Sensor code N = rain in mm
     url = f"https://geoservices.buergernetz.bz.it/services/meteo/v1/timeseries?station_code={station_id}&sensor_code=N&date_from={date_from_str}&date_to={date_to_str}"
     response = session.get(url)
     response.raise_for_status()
+    
+    response_json = response.json()
+    if len(response_json) == 0:
+        return None
+    
     bolzano_daily_observations = pd.DataFrame(response.json())
     # bolzano_daily_observations = pd.read_json('/home/jfleming/Documents/rs-landslide-monitoring/test.json',convert_dates=False)
 
     bolzano_daily_observations["DATE"] = pd.to_datetime(bolzano_daily_observations["DATE"].str.replace(":00CEST", "", regex=False))
-    
-    result = (
-        bolzano_daily_observations.groupby(
-            pd.Grouper(
-                key="DATE",
-                freq="1D",
-                offset="9h",
-                closed="left",  # Includes 9am 06/01, excludes 9am 07/01
-                label="right",  # Labels the period with 07/01
-            )
-        )["VALUE"]
-        .sum()
-        .reset_index()
-    )
 
+    result = group_by_day(bolzano_daily_observations, "DATE", "VALUE", historical_meterological_format=historical_meterological_format)
+    
     result = result[:-1]
     result['DATE'] = result['DATE'].dt.normalize() # Strip off time, not used in meterological time format
     result['station_id'] = station_id
@@ -111,8 +126,12 @@ def download_bolzano_date_range(session: r.Session, station_id: str, date_from: 
     return result
 
 
-def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
+def download_trentino_daily_meteorlogical_date_hydstra(session:r.Session, station_id:str, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
     """
+
+    WARNING - THIS API ONLY GETS ITS DATA UPDATED PERIODICALLY A COUPLE TIMES A YEAR.
+    ONLY USE IT FOR CLIMATOLOGY CALCULATIONS, NOT DAILY OBSERVATIONS
+
     Uses meterological date system (9am-9am).
     Keep flexible date range in case of platform death/ outage requiring us to look back further in time.
     There is a bug with the trentino portal (which runs on the hydstra server software ); if you pass in 
@@ -148,24 +167,58 @@ def download_trentino_daily_meteorlogical_date(session:r.Session, station_id:str
         rows = rows[rows['date'] == date_to]
     return rows
 
+
+def _download_trentino_archive(date_from:pd.Timestamp, date_to:pd.Timestamp):
+    """
+    Downloads data in parquet format. Gets updated daily
+
+    Args:
+        date_from (pd.Timestamp): _description_
+        date_to (pd.Timestamp): _description_
+    """
+    periods = pd.period_range(start=date_from.to_period("M"), end=date_to.to_period("M"), freq="M")
+    to_loop_over = [(p.year, p.month) for p in periods]
+    session = build_resilient_session()
+    grouped_list = []
+    # TODO: Consider caching everything except current month
+    for combo in to_loop_over:
+        year = combo[0]
+        month = combo[1]
+        url = f"https://archivio.meteotrentino.it/share/bulk/year={year}/{year}-{month}.parquet"
+        response = session.get(url)
+        response.raise_for_status()
+        df = pd.read_parquet(io.BytesIO(response.content))
+
+        df = df[df['code'] == '10.00'] # Rain code
+        df = df[df['quality'].isin([1,2,3,145])] # These are the only valid codes
+        grouped = group_by_day(df, "time", "value", group_by_extras=['station'])
+        grouped_list.append(grouped)
+
+    concatted:pd.DataFrame = pd.concat(grouped_list)
+    # Inclusive, think of singular day example
+    concatted = concatted[concatted['time'] >= date_from]
+    concatted = concatted[concatted['time'] <= date_to]
+
+    concatted['date'] = concatted['time'].dt.date
+
+    concatted = concatted.drop(['time'], axis=1)
+    concatted = concatted.rename(columns={'value':'precipitation'})
+    concatted['qual'] = 1
+
+    return concatted
+
 def time_range_download(data_dir:Path, date_from: pd.Timestamp, date_to:pd.Timestamp) -> pd.DataFrame:
     '''
-    If time is 07/01/2025 00:01, then the data that we get will be for the 06/01/2025 09:00 record. 
-    So make sure to schedule this to run _after_ 9:00 of each day
+    WARNING - THIS API ONLY GETS ITS DATA UPDATED PERIODICALLY A COUPLE TIMES A YEAR.
+    ONLY USE IT FOR CLIMATOLOGY CALCULATIONS, NOT DAILY OBSERVATIONS
     '''
-    context = RunContext(data_dir)
     
-    stations = read_station_data(context.historical_stations_path)
-    trentino_stations = stations[stations['provincia'] == 'tn']
-    session = build_storico_trentino_session()
-    for station_id in list(trentino_stations['station_id']):
-        print(f"Downloading trento station: {station_id}")
-        trento_result = pd.DataFrame(download_trentino_daily_meteorlogical_date(session,station_id,date_from,date_to))
-        
-        print(trento_result)
+    context = RunContext(data_dir)
+    trento_result = pd.DataFrame(_download_trentino_archive(date_from, date_to))
+    print(trento_result)
     # Uses special list
     bolzano_stations = pd.read_csv(context.bolzano_daily_stations_path)
-    bolzano_session = build_buergernetz_session()
+    bolzano_session = build_resilient_session()
 
     # TODO: change to using argument.
     today = pd.to_datetime("01/07/2025", format="%d/%m/%Y")
@@ -181,6 +234,6 @@ if __name__ == '__main__':
     ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
     args = ap.parse_args()
     data_dir = Path(args.data_dir)
-    date_to = pd.to_datetime("17/12/2025", format='%d/%m/%Y')
-    date_from = date_to #- pd.Timedelta(days = 1)
+    date_to = pd.to_datetime("01/12/2025", format='%d/%m/%Y').tz_localize(TIME_ZONE)
+    date_from = date_to - pd.Timedelta(days = 1)
     time_range_download(data_dir, date_from, date_to)

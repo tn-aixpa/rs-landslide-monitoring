@@ -10,7 +10,7 @@ from build_or_load_precipitation_climatology import (
     build_or_load_precipitation_climatology,
 )
 from calculate_monthly_normals import calculate_monthly_normals
-from constants import THREADING_PREFERENCE
+from constants import THREADING_PREFERENCE, TIME_ZONE
 from context import RunContext
 from daily_download import time_range_download
 from interpolate_single_day_worker import interpolate_single_day_worker
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     data_dir = Path(args.data_dir)
 
     if args.date is None:
-        today = pd.Timestamp.now(tz='Europe/Rome').normalize()
+        today = pd.Timestamp.now(tz=TIME_ZONE).normalize()
         today = today.tz_localize(None)
     else:        
         today = parse_datetime(args.date)

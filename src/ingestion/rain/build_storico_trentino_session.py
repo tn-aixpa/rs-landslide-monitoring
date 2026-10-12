@@ -19,7 +19,7 @@ def build_storico_trentino_session() -> r.Session:
     return session
 
 
-def build_buergernetz_session() -> r.Session:
+def build_resilient_session() -> r.Session:
     """
     This commonly responds with weird TLS errors; make sure its resilient enough
     to handle these.
