@@ -1,7 +1,7 @@
 '''
 Hello
 '''
-
+import sys
 import argparse
 from pathlib import Path
 
@@ -38,24 +38,24 @@ if __name__ == '__main__':
     ap.add_argument("--date", help="Todays date, dd/mm/yyyy format. Defaults to today's date in Italy")
     args = ap.parse_args()
     data_dir = Path(args.data_dir)
-
+    
     if args.date is None:
         today = pd.Timestamp.now(tz=TIME_ZONE).normalize()
-        today = today.tz_localize(None)
-    else:        
+    else:
         today = parse_datetime(args.date)
     #  TODO don't hardcode this.
+    # No point considering today as data won't be complete
     yesterday = today - pd.Timedelta(days=1)
-    
-    daily_observations_df = time_range_download(data_dir, yesterday, today)
+    day_before_yesterday = yesterday - pd.Timedelta(days = 1)
+    logger.info(f"Considering {day_before_yesterday} to {yesterday}")
     run_context = RunContext(data_dir)
+    daily_observations_df = time_range_download(logger, run_context, day_before_yesterday, yesterday)
+    
     # Historical observations are used to calculate daily anomaly. Meterological concept used for this model.
+    # Unfortunately this means mixing time formats; unlikely to result in inaccuracy.
     historical_observations = read_observation_data(run_context.historical_observations_files)
 
     stations_df = read_station_data(run_context.historical_stations_path, run_context.smoothed_dem_path)
-    stations_df = stations_df[stations_df['provincia'] == 'tn']
-    bolzano_stations = read_station_data(run_context.bolzano_daily_stations_path, run_context.smoothed_dem_path)
-    # TODO: Merge stations_df and bolzano_stations
     
     grid = load_dem(run_context.smoothed_dem_path, smoothed=True)
     monthly_normals = calculate_monthly_normals(historical_observations)
