@@ -119,10 +119,6 @@ def _download_trentino_archive(logger: Logger, date_from:pd.Timestamp, date_to:p
         grouped_list.append(grouped)
 
     concatted:pd.DataFrame = pd.concat(grouped_list)
-    # Inclusive, think of singular day example
-    concatted = concatted[concatted['time'] >= date_from]
-    concatted = concatted[concatted['time'] <= date_to]
-
     concatted['date'] = concatted['time'].dt.tz_localize(None)
 
     concatted = concatted.drop(['time'], axis=1)
@@ -173,87 +169,3 @@ if __name__ == '__main__':
     date_from = date_to# - pd.Timedelta(days = 1)
     logger = setup_logging()
     logger.info(time_range_download(logger, context, date_from, date_to))
-
-
-
-def _download_meteohub_daily():
-    """_summary_
-    This function could be removed; 
-    Raises:
-        NotImplementedError: _description_
-    """
-    raise NotImplementedError("See README.md for implementation details")
-    load_dotenv()
-    response = r.post("https://meteohub.agenziaitaliameteo.it/auth/login", json={'username':os.environ['USERNAME'],'password':os.environ['PASSWORD']})
-    print(response.status_code)
-    print(response.json())
-
-    raw_records = []
-
-    with open("/home/jfleming/Downloads/data-20261005T142348Z-4fbbcbbc-57bb-447b-8559-476b4545066b(1).json",'r') as f:
-        for line in f:
-            raw_records.append(json.loads(line))
-
-
-    records_to_parse = []
-
-    for raw_record in raw_records:
-        timestamp = pd.to_datetime(raw_record['date']) #ISO 8601
-        for raw_record_data in raw_record['data']:
-            if 'timerange' in raw_record_data:
-                precipitation_value = raw_record_data['vars']['B13011']['v']
-
-
-            if 'vars' in raw_record_data and 'B01019' in raw_record_data['vars']:
-                station_raw = raw_record_data['vars']['B01019']['v']
-                station_id = station_raw.split('-')[0].strip()
-                # print(thing['vars'])
-                # print(thing['B01019'])
-        records_to_parse.append([timestamp, precipitation_value, station_id])
-
-    df = pd.DataFrame(records_to_parse, columns=['timestamp', 'precipitation', 'station_id'])
-
-    df.to_csv('hello_world.csv',index=False)
-
-
-
-def download_trentino_daily_meteorlogical_date_hydstra(session:r.Session, station_id:str, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
-    """
-
-    WARNING - THIS API ONLY GETS ITS DATA UPDATED PERIODICALLY A COUPLE TIMES A YEAR.
-    ONLY USE IT FOR CLIMATOLOGY CALCULATIONS, NOT DAILY OBSERVATIONS
-
-    Uses meterological date system (9am-9am).
-    Keep flexible date range in case of platform death/ outage requiring us to look back further in time.
-    There is a bug with the trentino portal (which runs on the hydstra server software ); if you pass in 
-    one single date (e.g. 17/01/2026), keeping the `date_from` and `date_to` the same, it will 400. Even
-    though you just want the data for 17/01/2026, you must specify more than one day to constitute a range.
-
-
-    Args:
-        session (r.Session): _description_
-        station_id (str): _description_
-        date_from (pd.Timestamp): _description_
-        date_to (pd.Timestamp): _description_
-    """
-
-    hydstra_bug_workaround_flag = False
-    # Workaround for bug in hydstra server when you just want one day
-    if date_from == date_to:
-        date_from = date_from - pd.Timedelta(days = 1)
-        hydstra_bug_workaround_flag = True
-
-    date_from_str = date_from.strftime("%d/%m/%Y")
-    date_to_str = date_to.strftime("%d/%m/%Y")
-    
-    daily_url = f"http://storico.meteotrentino.it/cgi/webhyd.pl?co={station_id}&v=10.50_10.50&vn=Pioggia%20(millimetri)%20Tot%20da%20Annale%20Idrologico&p=Altro,1,1,custom,1&o=Tabella,data&i=Giornaliera,Day,1&cat=rs&d1={date_from_str}&d2={date_to_str}&1791362644700"
-    response = session.get(daily_url)
-    response.raise_for_status()
-    
-    rows = pd.DataFrame(parse_storico_trentino_html(station_id, response.content))
-    rows["date"] = parse_datetime(rows["datetime"])
-    rows = post_process_trentino_observations(rows)
-
-    if hydstra_bug_workaround_flag:
-        rows = rows[rows['date'] == date_to]
-    return rows
