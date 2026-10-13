@@ -21,7 +21,7 @@ session = build_storico_trentino_session()
 
 def main(output_file_name: str, data_directory: Path, historical_convention: bool):
     out_folder = data_directory / "rainfall_observations" / "trentino_observations"
-    stations_path = data_directory / "stations_trentino.csv"
+    stations_path = data_directory / 'stations_reprojected' / "stations_trentino.csv"
     df = pd.read_csv(stations_path)
     station_ids = list(df["station_id"])
     with open(out_folder / output_file_name, "w", newline="") as csvfile:

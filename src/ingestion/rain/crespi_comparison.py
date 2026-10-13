@@ -526,7 +526,7 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"{data_dir} does not exist!")
 
     run_context = RunContext(data_dir)
-    run_context.setup_boundary(args.province)
+    run_context.setup(args.province)
 
     run_context.interpolation_start_date = parse_datetime(args.interpolation_start_date)
     run_context.interpolation_end_date = parse_datetime(args.interpolation_end_date)

@@ -1,5 +1,5 @@
 """
-Just for visualisation
+Visualisation. Compare our results with those of crespi
 """
 
 import argparse

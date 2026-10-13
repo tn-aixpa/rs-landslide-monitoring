@@ -14,9 +14,7 @@ BAD_OBSERVATION_CODES = [
 ]
 
 
-def read_observation_data(
-    observation_files: list[Path], reference_start=None, reference_end=None
-) -> pd.DataFrame:
+def read_observation_data(observation_files: list[Path], reference_start=None, reference_end=None) -> pd.DataFrame:
     """
     Austrian + swiss observation data are kept in seperate files otherwise too big for MS Excel,
     so merge them in here instead.

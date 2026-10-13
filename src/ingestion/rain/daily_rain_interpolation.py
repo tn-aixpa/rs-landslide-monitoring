@@ -3,7 +3,6 @@ Hello
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -80,7 +79,7 @@ if __name__ == "__main__":
 
     logger.info(f"Considering {date_from} to {date_to}")
     run_context = RunContext(data_dir)
-    run_context.setup_boundary()
+    run_context.setup()
 
     daily_observations_df = time_range_download(logger, run_context, date_from, date_to)
     # Historical observations are used to calculate daily anomaly. Meterological concept used for this model.

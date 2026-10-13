@@ -1,23 +1,33 @@
 # Rainfall interpolation
 
+## Quickstart
+
+| Name    | Where to put | Notes
+| -------- | ------- | -------
+| January  | $250    | 
+| February | $80     |
+| March    | $420    |
+
+
 ## Methodology of Crespi
 
 This script is based on this article: https://essd.copernicus.org/articles/13/2801/2021/essd-13-2801-2021.pdf
 
 A very brief summary of this paper is that rainfall for a particular day is calculated based on several factors:
 
-```
+```sh
 rain on day x (mm) = function(climatology, altitude, station observation for day)
 ```
+
 This follows a standard meterological framework called PRISM. 
 The advantages of this approach are:
 
-1. The results look smoother and more realistic considering elevation; much better than a simple linear interpolation would achieve.
-2. Spiky or erroneous station data get smoothed out due to climatology factor
+1. The results are more realistic considering elevation; much better than a simple linear interpolation would achieve.
+2. Local rain shadows, lake effects are (supposedly) accounted for using climatology. Spiky station data are smoothed out.
 3. Results in high resolution from meteorological point of view (250m) over traditional approaches (usually 2.5km).
 
 The disadvantages are that it:
-1. Legitimately spiky results get smoothed out and it.
+1. Legitimately spiky results get smoothed out.
 2. Performs poorly in high rainfall events (see paper for more detail). Legitamate changes in climate due to global warming are smoothed out.
 3. Requires a large, consistent record of historical data, including data from regions outside of the study area.
 
@@ -26,11 +36,7 @@ Lavoro in corso; questo progetto ha 3 stagine:
 2. Produrre set di dati per il training del modello (non fatto)
 3. Scaricare set di dati del tempo giornaliero per previsione (non fatto)
 
-Bear in mind that all rain datasets have two time period formats; a historical form that runs from 9am of day 1 to 9am of day 2, and another which runs from UTC midnight day 1 to UTC midnight day 2. For the Crespi comparison, we use the 9am.
-
-Unfortunately, 
-
-
+Bear in mind that all rain datasets have two time period formats; a historical form that runs from 9am of day 1 to 9am of day 2, and another which runs from UTC midnight day 1 to UTC midnight day 2. For the Crespi comparison, we use the 9am time convention.
 
 ## Creare set di dati input
 
@@ -41,12 +47,8 @@ that _do not match_ those from meteotrentino. The units are different, being ret
 
 An example of an independent system where the observations *DO* match is buergernetz vs https://weather.province.bz.it/en/download-data. Thank goodness!
 
-### Stazione 
-
-Primo di tutto, dobbiamo scaricare i set di dati delle stazioni meteorologiche. 
-
 #### Trentino
-
+Historical data:
 Meteo trentino - http://storico.meteotrentino.it/
 
 #### Bolzano

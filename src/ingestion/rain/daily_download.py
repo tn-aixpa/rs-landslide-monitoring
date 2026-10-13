@@ -2,23 +2,14 @@
 Throwaway script to investigate meteohub data
 """
 
-import argparse
 import io
-import json
-import os
 from logging import Logger
-from pathlib import Path
 
 import pandas as pd
 import requests as r
 from build_storico_trentino_session import build_resilient_session
-from constants import TIME_ZONE
 from context import RunContext
-from dotenv import load_dotenv
 from parse_datetime import parse_datetime
-from parse_storico_trentino_html import parse_storico_trentino_html
-from read_observation_data import post_process_trentino_observations
-from setup_logging import setup_logging
 
 """
 Field name lookups taken from:
@@ -63,7 +54,7 @@ def group_by_day(
     return grouped.sort_values(by=date_column_name)
 
 
-def download_bolzano_date_range(
+def _download_bolzano_date_range(
     logger: Logger,
     session: r.Session,
     station_id: str,
@@ -163,9 +154,7 @@ def _download_trentino_archive(
     return concatted
 
 
-def time_range_download(
-    logger: Logger, context: RunContext, date_from: pd.Timestamp, date_to: pd.Timestamp
-) -> pd.DataFrame:
+def time_range_download(logger: Logger, context: RunContext, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:
     """
 
     Download rainfall sensor data from alto-adige and trentino from between the specified dates
@@ -188,7 +177,7 @@ def time_range_download(
     bolzano_session = build_resilient_session()
 
     for station_id in list(bolzano_stations["station_id"]):
-        result = download_bolzano_date_range(
+        result = _download_bolzano_date_range(
             logger, bolzano_session, station_id, date_from, date_to
         )
         if result is None:
@@ -197,16 +186,3 @@ def time_range_download(
         list_of_dfs.append(result)
 
     return pd.concat(list_of_dfs, ignore_index=True)
-
-
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-    args = ap.parse_args()
-    data_dir = Path(args.data_dir)
-    context = RunContext(data_dir)
-    # 2026-10-12
-    date_to = pd.to_datetime("12/10/2026", format="%d/%m/%Y").tz_localize(TIME_ZONE)
-    date_from = date_to  # - pd.Timedelta(days = 1)
-    logger = setup_logging()
-    logger.info(time_range_download(logger, context, date_from, date_to))
