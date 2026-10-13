@@ -71,6 +71,13 @@ class RunContext:
         return np.ma.MaskedArray(np_array, mask_climatology_2d)
 
     def setup_boundary(self, province: str | None = None):
+        """
+        Args:
+            province (str | None, optional): Set this only during comparison of results when cutting out alto-adige data. Defaults to None.
+
+        Raises:
+            ValueError: _description_
+        """
         self.historical_observations_files = [self.historical_trentino_observations_path]
         if province is None:
             boundary_dataset = self.data_dir / "region_boundary_reprojected" / "boundary_reprojected.shp"
@@ -82,4 +89,3 @@ class RunContext:
             raise ValueError(f"Province {province} was not a recognised option")
         
         self.boundary_polygon_shapes = read_boundary_dataset(boundary_dataset)
-

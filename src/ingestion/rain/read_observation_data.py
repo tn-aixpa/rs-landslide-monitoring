@@ -57,7 +57,7 @@ def read_observation_data(observation_files: list[Path], reference_start=None, r
 
 
 def post_process_trentino_observations(observations: pd.DataFrame) -> pd.DataFrame:
-    observations = observations.dropna(subset="piogga(mm)")
+    observations = observations.dropna(subset="piogga(mm)").copy()
     
     observations["qual"] = observations["qual"].astype('int')
     observations = observations[~observations["qual"].isin(BAD_OBSERVATION_CODES)]  # drop bad data rows

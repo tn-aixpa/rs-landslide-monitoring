@@ -27,7 +27,7 @@ def build_or_load_precipitation_climatology(
     climatology = np.empty((12, n_cells), dtype=np.float32)
 
     climatology_paths = [
-        rc.CLIMATOLOGY_OUTPUT_DIR / f"precipitation_climatology_month_{month:02d}.tif"
+        rc.climatology_output_dir / f"precipitation_climatology_month_{month:02d}.tif"
         for month in range(1, 13)
     ]
 
@@ -106,7 +106,7 @@ def build_or_load_precipitation_climatology(
 
         climatology[month - 1] = np.maximum(0.0, pred).astype(np.float32)
 
-    os.makedirs(rc.CLIMATOLOGY_OUTPUT_DIR, exist_ok=True)
+    os.makedirs(rc.climatology_output_dir, exist_ok=True)
     profile = grid["profile"].copy()
     profile.update(
         dtype=rasterio.float32,
@@ -124,7 +124,7 @@ def build_or_load_precipitation_climatology(
         climatology_2d[grid["valid_mask_2d"]] = climatology[month]
         # TODO: Don't hard code
         output_path = (
-            rc.CLIMATOLOGY_OUTPUT_DIR
+            rc.climatology_output_dir
             / f"precipitation_climatology_month_{month + 1:02d}.tif"
         )
 
@@ -143,7 +143,7 @@ def build_or_load_precipitation_climatology(
 
     # TODO: Move this filename to some constant
     with rasterio.open(
-        rc.CLIMATOLOGY_OUTPUT_DIR / "summed_climatology.tif", "w", **profile
+        rc.climatology_output_dir / "summed_climatology.tif", "w", **profile
     ) as dst:
         dst.write(summed_climatology, 1)
 

@@ -396,12 +396,9 @@ def main(
     logger.info("Calculating monthly normals...")
 
     monthly_normals = calculate_monthly_normals(observations)
-    
     monthly_normals.to_csv(str(data_dir / 'temp' / 'monthly_normals.csv'), index=False)
 
-    run_context.climatology_decay_parameters = fast_parallel_parameter_search(
-        stations, monthly_normals
-    )
+    run_context.climatology_decay_parameters = fast_parallel_parameter_search(stations, monthly_normals)
 
     if climatology_single_month is not None:
         if not climatology_single_month.isdigit():

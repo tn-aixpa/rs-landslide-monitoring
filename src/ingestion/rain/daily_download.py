@@ -109,6 +109,12 @@ def _download_trentino_archive(logger: Logger, date_from:pd.Timestamp, date_to:p
 
         df = df[df['code'] == '10.00'] # Rain code
         df = df[df['quality'].isin([1, 2, 3, 145])] # These are the only valid codes
+        # Make days line up 
+        df['time'] = df['time'].dt.tz_convert("Europe/Rome")
+        df = df[df['time'] >= date_from]
+        df = df[df['time'] < date_to + pd.Timedelta(hours=24)]
+
+        
         grouped = group_by_day(df, "time", "value", group_by_extras=['station'])
         grouped_list.append(grouped)
 
@@ -154,7 +160,7 @@ def time_range_download(logger: Logger, context:RunContext, date_from: pd.Timest
             continue
         list_of_dfs.append(result)
 
-    return pd.concat(list_of_dfs)
+    return pd.concat(list_of_dfs, ignore_index=True)
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
@@ -162,7 +168,8 @@ if __name__ == '__main__':
     args = ap.parse_args()
     data_dir = Path(args.data_dir)
     context = RunContext(data_dir)
-    date_to = pd.to_datetime("08/01/2026", format='%d/%m/%Y').tz_localize(TIME_ZONE)
+    # 2026-10-12
+    date_to = pd.to_datetime("12/10/2026", format='%d/%m/%Y').tz_localize(TIME_ZONE)
     date_from = date_to# - pd.Timedelta(days = 1)
     logger = setup_logging()
     logger.info(time_range_download(logger, context, date_from, date_to))

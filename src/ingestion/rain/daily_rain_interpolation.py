@@ -1,8 +1,8 @@
 '''
 Hello
 '''
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -35,7 +35,7 @@ if is_debugging():
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
-    ap.add_argument("--date", help="Todays date, dd/mm/yyyy format. Defaults to today's date in Italy")
+    ap.add_argument("--date", help="Todays date, dd/mm/yyyy format. Defaults to yesterday's date in Italy")
     args = ap.parse_args()
     data_dir = Path(args.data_dir)
     
@@ -43,14 +43,16 @@ if __name__ == '__main__':
         today = pd.Timestamp.now(tz=TIME_ZONE).normalize()
     else:
         today = parse_datetime(args.date)
-    #  TODO don't hardcode this.
+        today = today.tz_localize(TIME_ZONE)
+
     # No point considering today as data won't be complete
     yesterday = today - pd.Timedelta(days=1)
     day_before_yesterday = yesterday - pd.Timedelta(days = 1)
     logger.info(f"Considering {day_before_yesterday} to {yesterday}")
     run_context = RunContext(data_dir)
-    daily_observations_df = time_range_download(logger, run_context, day_before_yesterday, yesterday)
+    run_context.setup_boundary()
     
+    daily_observations_df = time_range_download(logger, run_context, yesterday, yesterday)
     # Historical observations are used to calculate daily anomaly. Meterological concept used for this model.
     # Unfortunately this means mixing time formats; unlikely to result in inaccuracy.
     historical_observations = read_observation_data(run_context.historical_observations_files)
@@ -60,7 +62,8 @@ if __name__ == '__main__':
     grid = load_dem(run_context.smoothed_dem_path, smoothed=True)
     monthly_normals = calculate_monthly_normals(historical_observations)
     monthly_climatology = build_or_load_precipitation_climatology(run_context, stations=stations_df, monthly_normals=monthly_normals, grid=grid)
-    unique_dates = pd.date_range(yesterday, today, freq='D')
+    yesterday = yesterday.tz_localize(None).normalize()
+    unique_dates = pd.date_range(yesterday, yesterday, freq='D')
     # unique_dates = daily_observations_df['date'].unique()
     Parallel(n_jobs=N_JOBS, prefer=THREADING_PREFERENCE)(
         delayed(interpolate_single_day_worker)(

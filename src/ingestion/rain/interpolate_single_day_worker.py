@@ -172,7 +172,7 @@ def interpolate_single_day_worker(
         values=precipitation_valid_cells, grid=grid
     )
     date_str = date.strftime(run_context.output_file_time_format)
-    output_path = run_context.OUTPUT_DIRECTORY / f"fleming_{date_str}.tif"
+    output_path = run_context.output_directory / f"fleming_{date_str}.tif"
 
     if np.all(np.isnan(precipitation_raster) | (precipitation_raster == 0)):
         logger.info(f"Skipping output for {date_str} as day evaluated to dry across grid")
