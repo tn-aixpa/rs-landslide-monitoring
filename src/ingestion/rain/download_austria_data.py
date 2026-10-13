@@ -1,6 +1,7 @@
-'''
+"""
 Only used for crespi comparison, feel free to ignore.
-'''
+"""
+
 import argparse
 import os
 from pathlib import Path
@@ -20,7 +21,7 @@ ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
 args = ap.parse_args()
 data_dir = Path(args.data_dir)
 
-output_csv_path = data_dir /'temp'/ "grouped.csv"
+output_csv_path = data_dir / "temp" / "grouped.csv"
 os.unlink(output_csv_path)  # clear contents
 
 write_header = True

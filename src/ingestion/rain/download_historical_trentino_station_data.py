@@ -18,6 +18,7 @@ FIELD_NAMES = ["station_id", "datetime", "piogga(mm)", "qual"]
 
 session = build_storico_trentino_session()
 
+
 def main(output_file_name: str, data_directory: Path, historical_convention: bool):
     out_folder = data_directory / "rainfall_observations" / "trentino_observations"
     stations_path = data_directory / "stations_trentino.csv"
@@ -27,13 +28,13 @@ def main(output_file_name: str, data_directory: Path, historical_convention: boo
         writer = csv.DictWriter(csvfile, fieldnames=FIELD_NAMES)
         writer.writeheader()
         for station_id in station_ids:
-            logger.info(f"Downloading {station_id}...")            
+            logger.info(f"Downloading {station_id}...")
             url_to_use = f"http://storico.meteotrentino.it/cgi/webhyd.pl?co={station_id}&v=10.00_10.00&vn=Pioggia%20(millimetri)%20&p=Tutti%20i%20dati,01/01/1800,01/01/1800,period,1&o=Tabella,data&i=Giornaliera,Day,1&cat=rs&1791295541093"
             if historical_convention:
-                url_to_use = f"http://storico.meteotrentino.it/cgi/webhyd.pl?co={station_id}&v=10.50_10.50&vn=Pioggia (millimetri) Tot da Annale Idrologico&p=Tutti i dati,01/01/1800,01/01/1800,period,1&o=Tabella,data&i=Giornaliera,Day,1&cat=rs&1789398854164="    
+                url_to_use = f"http://storico.meteotrentino.it/cgi/webhyd.pl?co={station_id}&v=10.50_10.50&vn=Pioggia (millimetri) Tot da Annale Idrologico&p=Tutti i dati,01/01/1800,01/01/1800,period,1&o=Tabella,data&i=Giornaliera,Day,1&cat=rs&1789398854164="
 
             response = session.get(url_to_use)
-            rows = parse_storico_trentino_html(station_id,response.content)
+            rows = parse_storico_trentino_html(station_id, response.content)
             writer.writerows(rows)
 
 
@@ -55,4 +56,4 @@ if __name__ == "__main__":
     output_file_name = args.out_file_name
     if not output_file_name.endswith(".csv"):
         raise ValueError("Output filetype must be a csv")
-    main(output_file_name,data_dir, convention == 'historical')
+    main(output_file_name, data_dir, convention == "historical")

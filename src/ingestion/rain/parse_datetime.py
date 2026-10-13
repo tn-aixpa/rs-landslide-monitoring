@@ -34,7 +34,9 @@ def parse_datetime(
 
     # TODO: switch to pd.normalize?
     if isinstance(temp, pd.Series):
-        temp = temp.dt.floor("D")  # strip off timestamp which is useless and hurts brain
+        temp = temp.dt.floor(
+            "D"
+        )  # strip off timestamp which is useless and hurts brain
     else:
         temp = temp.floor("D")
 

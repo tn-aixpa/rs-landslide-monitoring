@@ -37,8 +37,9 @@ def optimize_daily_decay(
     return {"day": day, "horizontal": best_c_horiz, "elevation": best_c_elev}
 
 
-
-def calculate_precipitation_anomalies(daily_observations: pd.DataFrame, station_monthly_normals: pd.DataFrame):
+def calculate_precipitation_anomalies(
+    daily_observations: pd.DataFrame, station_monthly_normals: pd.DataFrame
+):
     """
     What were the precipitation anomalies on this day compared with the average climatology?
     """
@@ -60,7 +61,6 @@ def calculate_precipitation_anomalies(daily_observations: pd.DataFrame, station_
     return day
 
 
-
 def interpolate_daily_precipitation_vectorized(
     daily_observations: pd.DataFrame,
     stations: pd.DataFrame,
@@ -77,7 +77,9 @@ def interpolate_daily_precipitation_vectorized(
     if len(anomalies) == 0:
         return np.full(len(grid["x"]), np.nan, dtype=np.float32)
 
-    station_metadata = stations[stations["station_id"].isin(anomalies["station_id"])].copy()
+    station_metadata = stations[
+        stations["station_id"].isin(anomalies["station_id"])
+    ].copy()
     anomalies = (
         anomalies.set_index("station_id")
         .loc[station_metadata["station_id"]]
@@ -136,7 +138,9 @@ def interpolate_single_day_worker(
     monthly_climatology: np.ndarray,
     grid: dict,
 ):
-    logger = setup_logging() # Do this inside worker function too as it sets up its own context
+    logger = (
+        setup_logging()
+    )  # Do this inside worker function too as it sets up its own context
     date = pd.Timestamp(date1)
     date_str = f"{date:%d/%m/%Y}"
     logger.info(f"Interpolating {date_str}")
@@ -145,7 +149,9 @@ def interpolate_single_day_worker(
     daily_observations = observations[observations["date"] == date]
 
     if len(daily_observations) == 0 or (daily_observations["precipitation"] == 0).all():
-        logger.info(f"Skipping output for {date_str} as day was observed completely dry")
+        logger.info(
+            f"Skipping output for {date_str} as day was observed completely dry"
+        )
         return
 
     daily_decay_parameters = optimize_daily_decay(date, stations, daily_observations)
@@ -175,15 +181,19 @@ def interpolate_single_day_worker(
     output_path = run_context.output_directory / f"fleming_{date_str}.tif"
 
     if np.all(np.isnan(precipitation_raster) | (precipitation_raster == 0)):
-        logger.info(f"Skipping output for {date_str} as day evaluated to dry across grid")
+        logger.info(
+            f"Skipping output for {date_str} as day evaluated to dry across grid"
+        )
     else:
         masked_precipitation_raster = run_context.apply_mask_to_np_array(
             precipitation_raster, grid["profile"]["transform"]
         )
 
         profile = grid["profile"].copy()
-        profile.update(dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate")
-        with rasterio.open(output_path,"w",**profile) as dst:
+        profile.update(
+            dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate"
+        )
+        with rasterio.open(output_path, "w", **profile) as dst:
             dst.write(masked_precipitation_raster.astype(np.float32), 1)
 
         logger.info(f"Saved: {output_path}")

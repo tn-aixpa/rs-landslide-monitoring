@@ -3,7 +3,7 @@ PRISM-like anomaly interpolation for daily precipitation.
 
 Questo script e' usato per fare un confronto contro nostro codice e quella di Crespi et al.
 
-A tal fine, questo script legge come input 
+A tal fine, questo script legge come input
 1. il DEM come un .tif
 2. il set di dati per i stazione come .csv
 3. I set di dati per le osservazione come .csv
@@ -20,6 +20,7 @@ TODO list:
 - Rework `grid` variable
 
 """
+
 import argparse
 import os
 from pathlib import Path
@@ -55,6 +56,7 @@ if is_debugging():
     # There are some weird C library shenanigans that cause the debug session to crash when debugging in vscode debugger
     logger.info("Debugging detected, switching to single threading mode")
     N_JOBS = 1
+
 
 def optimize_decay_params_for_month_worker(
     human_month: int,
@@ -102,6 +104,7 @@ def optimize_decay_params_for_month_worker(
         "sse": res.fun,
     }
 
+
 def fast_parallel_parameter_search(
     stations: pd.DataFrame, monthly_normals: pd.DataFrame
 ) -> dict:
@@ -133,9 +136,9 @@ def fast_parallel_parameter_search(
     return optimized_decay_params
 
 
-
-
-def smooth_elevation(rc: RunContext, grid, radius=SMOOTHING_RADIUS, half_distance=SMOOTHING_HALF_DISTANCE):
+def smooth_elevation(
+    rc: RunContext, grid, radius=SMOOTHING_RADIUS, half_distance=SMOOTHING_HALF_DISTANCE
+):
     """
     Cacky implementation of smoothing a DEM - don't use a kernel, use brush-like smoothing using
     inefficient tree-structure.
@@ -355,7 +358,7 @@ def build_or_load_precipitation_climatology(
         )
 
         rc.apply_mask_to_np_array(climatology_2d, profile["transform"])
-        
+
         masked_climatology_2d = rc.apply_mask_to_np_array(
             climatology_2d, profile["transform"]
         )
@@ -374,6 +377,7 @@ def build_or_load_precipitation_climatology(
 
     return climatology
 
+
 def main(
     rc: RunContext,
     single_day=None,
@@ -389,16 +393,20 @@ def main(
     smooth_elevation(rc, grid)
 
     logger.info("Loading station data...")
-    stations = read_station_data(rc.historical_stations_path, run_context.smoothed_dem_path)
+    stations = read_station_data(
+        rc.historical_stations_path, run_context.smoothed_dem_path
+    )
     observations = read_observation_data(
         rc.historical_observations_files, rc.reference_start, rc.reference_end
     )
     logger.info("Calculating monthly normals...")
 
     monthly_normals = calculate_monthly_normals(observations)
-    monthly_normals.to_csv(str(data_dir / 'temp' / 'monthly_normals.csv'), index=False)
+    monthly_normals.to_csv(str(data_dir / "temp" / "monthly_normals.csv"), index=False)
 
-    run_context.climatology_decay_parameters = fast_parallel_parameter_search(stations, monthly_normals)
+    run_context.climatology_decay_parameters = fast_parallel_parameter_search(
+        stations, monthly_normals
+    )
 
     if climatology_single_month is not None:
         if not climatology_single_month.isdigit():
@@ -410,7 +418,9 @@ def main(
     logger.info("Building monthly precipitation climatology...")
 
     # monthly_climatology looks like [12, [grid_x * grid_y]] array; one entry per month
-    monthly_climatology = build_or_load_precipitation_climatology(rc, stations=stations, monthly_normals=monthly_normals, grid=grid, clean=clean)
+    monthly_climatology = build_or_load_precipitation_climatology(
+        rc, stations=stations, monthly_normals=monthly_normals, grid=grid, clean=clean
+    )
 
     if climatology_single_month is not None:
         logger.info("climatology_single_month was set so exiting")
@@ -420,11 +430,17 @@ def main(
         logger.info("Climatology only, exiting")
         return
 
-    observations = observations[observations["date"] >= run_context.interpolation_start_date]
-    observations = observations[observations["date"] <= run_context.interpolation_end_date]
+    observations = observations[
+        observations["date"] >= run_context.interpolation_start_date
+    ]
+    observations = observations[
+        observations["date"] <= run_context.interpolation_end_date
+    ]
     unique_dates = np.sort(observations["date"].unique())
     if single_day is None:
-        logger.info(f"Interpolating for {len(unique_dates)} dates between {run_context.interpolation_start_date} and {run_context.interpolation_end_date}")
+        logger.info(
+            f"Interpolating for {len(unique_dates)} dates between {run_context.interpolation_start_date} and {run_context.interpolation_end_date}"
+        )
     else:
         single_day = parse_datetime(single_day)
         if single_day not in unique_dates:
@@ -432,13 +448,17 @@ def main(
         unique_dates = [single_day]
         daily_observations = observations[observations["date"] == single_day]
         single_day_date_str = single_day.strftime(rc.output_file_time_format)
-        geojson_output_path = rc.output_directory / f"fleming_{single_day_date_str}.geojson"
+        geojson_output_path = (
+            rc.output_directory / f"daily_{single_day_date_str}.geojson"
+        )
 
-        build_daily_observations_geojson(geojson_output_path, daily_observations, stations)
+        build_daily_observations_geojson(
+            geojson_output_path, daily_observations, stations
+        )
 
     logger.info("Deleting all previous daily outputs...")
     delete_all_from_folder(str(rc.output_directory))
-    
+
     Parallel(n_jobs=N_JOBS, prefer=THREADING_PREFERENCE)(
         delayed(interpolate_single_day_worker)(
             run_context=run_context,
@@ -493,8 +513,11 @@ if __name__ == "__main__":
         "--climatology-single-month",
         help="Debug option. Calculate climatology for a single month and then exit. 1 indexed",
     )
-    debug.add_argument("--province", choices=['trentino','bolzano'],help="If set, only calculate climateology and results for specified province")
-
+    debug.add_argument(
+        "--province",
+        choices=["trentino", "bolzano"],
+        help="If set, only calculate climateology and results for specified province",
+    )
 
     args = ap.parse_args()
     data_dir = Path(args.data_dir)

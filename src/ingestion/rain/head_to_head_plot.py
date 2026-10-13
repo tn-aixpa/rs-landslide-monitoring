@@ -1,6 +1,7 @@
 """
-WIP
+Just for visualisation
 """
+
 import argparse
 import random
 from glob import glob
@@ -57,8 +58,10 @@ for crespi_dataset in crespi_paths:
                 new_series_list.append(r[0])
 
             fleming_series = pd.Series(new_series_list)
-            fleming_series = fleming_series.replace(fleming_src.nodata, 0) # nodata means no rain
-        
+            fleming_series = fleming_series.replace(
+                fleming_src.nodata, 0
+            )  # nodata means no rain
+
     with rasterio.open(crespi_dataset) as crespi_src:
         result = crespi_src.sample(coords)
         new_series_list = []
@@ -68,7 +71,9 @@ for crespi_dataset in crespi_paths:
             raise AssertionError("Could not join on result")
 
         crespi_series = pd.Series(new_series_list)
-        crespi_series = crespi_series.replace(crespi_src.nodata, 0) # nodata means no rain
+        crespi_series = crespi_series.replace(
+            crespi_src.nodata, 0
+        )  # nodata means no rain
     color = (random.random(), random.random(), random.random())
     marker = random.choice(markers)
     plt.scatter(crespi_series, fleming_series, marker=marker, color=color, alpha=0.5)

@@ -1,7 +1,8 @@
-'''
+"""
 Parse historical sud-tirol data.
 This is downloaded as a set of excel documents donwloaded manually from https://weather.province.bz.it/en/download-data
-'''
+"""
+
 import argparse
 import os
 from pathlib import Path

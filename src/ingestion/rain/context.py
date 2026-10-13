@@ -15,7 +15,9 @@ class RunContext:
 
         # Include data in this range during calculation of climatology
         # These are both _inclusive_
-        self.reference_start = parse_datetime("01/01/1985")  # Not many station observations before here
+        self.reference_start = parse_datetime(
+            "01/01/1985"
+        )  # Not many station observations before here
         self.reference_end = parse_datetime("31/12/2025")  # bolzano values stop here
 
         # Include data in this range during daily interpolation calculation
@@ -36,7 +38,9 @@ class RunContext:
             / "trentino_observations"
             / "observations_9am.csv"
         )
-        self.historical_au_observations_path = data_dir / "temp" / "austria_grouped_9am.csv"
+        self.historical_au_observations_path = (
+            data_dir / "temp" / "austria_grouped_9am.csv"
+        )
         self.historical_bolzano_observations_path = (
             data_dir / "rainfall_observations" / "bolzano_observations.csv"
         )
@@ -56,7 +60,9 @@ class RunContext:
 
         self.crespi_data_folder = data_dir / "crespi_data"
 
-        self.bolzano_daily_stations_path = data_dir / "daily_stations_alto_adige_filtered_reprojected.csv"
+        self.bolzano_daily_stations_path = (
+            data_dir / "daily_stations_alto_adige_filtered_reprojected.csv"
+        )
 
     def apply_mask_to_np_array(self, np_array, transform):
         """
@@ -78,14 +84,25 @@ class RunContext:
         Raises:
             ValueError: _description_
         """
-        self.historical_observations_files = [self.historical_trentino_observations_path]
+        self.historical_observations_files = [
+            self.historical_trentino_observations_path
+        ]
         if province is None:
-            boundary_dataset = self.data_dir / "region_boundary_reprojected" / "boundary_reprojected.shp"
+            boundary_dataset = (
+                self.data_dir
+                / "region_boundary_reprojected"
+                / "boundary_reprojected.shp"
+            )
             # Miss off bolzano and austria observations if just considering trentino.
-            self.historical_observations_files = self.historical_observations_files + [self.historical_au_observations_path,self.historical_bolzano_observations_path]
-        elif province == 'trentino':
-            boundary_dataset = self.data_dir / "boundary_reprojected" / "boundary_reprojected.shp"
+            self.historical_observations_files = self.historical_observations_files + [
+                self.historical_au_observations_path,
+                self.historical_bolzano_observations_path,
+            ]
+        elif province == "trentino":
+            boundary_dataset = (
+                self.data_dir / "boundary_reprojected" / "boundary_reprojected.shp"
+            )
         else:
             raise ValueError(f"Province {province} was not a recognised option")
-        
+
         self.boundary_polygon_shapes = read_boundary_dataset(boundary_dataset)

@@ -2,6 +2,7 @@
 Basic comparison between our results and those of Crespi by plotting both their observed and predicted values against each other.
 Problem with this plot is that 0mm predictions don't show up very well. Probably needs a bar plot or something
 """
+
 import argparse
 from glob import glob
 from pathlib import Path
@@ -24,7 +25,10 @@ run_context = RunContext(data_dir)
 stations = read_station_data(run_context.historical_stations_path)
 
 observations = read_observation_data(
-    [run_context.historical_trentino_observations_path, run_context.historical_bolzano_observations_path],
+    [
+        run_context.historical_trentino_observations_path,
+        run_context.historical_bolzano_observations_path,
+    ],
     run_context.reference_start,
     run_context.reference_end,
 )
@@ -34,7 +38,7 @@ current_max_predicted = 20
 
 all_crespi_files = glob(str(run_context.crespi_data_folder) + "/*.tif")
 
-for i,crespi_dataset in enumerate(all_crespi_files):
+for i, crespi_dataset in enumerate(all_crespi_files):
     with rasterio.open(crespi_dataset) as crespi_src:
         crespi_stem = Path(crespi_dataset).stem
         date_str = crespi_stem[7:].replace("_", "/")
@@ -57,12 +61,18 @@ for i,crespi_dataset in enumerate(all_crespi_files):
 
         current_max_predicted = max(current_max_predicted, merged["predicted"].max())
 
-        plt.scatter(merged["precipitation"], merged["predicted"], c="red", alpha=1, label="crespi" if i == 0 else None)
+        plt.scatter(
+            merged["precipitation"],
+            merged["predicted"],
+            c="red",
+            alpha=1,
+            label="crespi" if i == 0 else None,
+        )
 
 
 all_fleming_files = glob(str(run_context.output_directory) + "/*.tif")
 
-for i,fleming_dataset in enumerate(all_fleming_files):
+for i, fleming_dataset in enumerate(all_fleming_files):
     with rasterio.open(fleming_dataset) as crespi_src:
         crespi_stem = Path(fleming_dataset).stem
         date_str = crespi_stem[8:].replace("_", "/")
@@ -86,7 +96,13 @@ for i,fleming_dataset in enumerate(all_fleming_files):
         current_max_predicted = max(current_max_predicted, merged["predicted"].max())
 
         # TODO: Also check 0 predictions
-        plt.scatter(merged["precipitation"], merged["predicted"], c="blue", alpha=0.5, label="fleming" if i == 0 else None)
+        plt.scatter(
+            merged["precipitation"],
+            merged["predicted"],
+            c="blue",
+            alpha=0.5,
+            label="fleming" if i == 0 else None,
+        )
 
 
 one_to_one_line = np.linspace(0, current_max_observed, 10)

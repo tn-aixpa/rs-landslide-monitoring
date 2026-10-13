@@ -1,11 +1,12 @@
-'''
+"""
 Load DEM into grid attributes information
-'''
+"""
+
 import numpy as np
 import rasterio
 
 
-def load_dem(path, smoothed = False) -> dict:
+def load_dem(path, smoothed=False) -> dict:
     """
     TODO: Return type for this could quite happily be turned into a class called GridAttributes or something
     Setup the grid based on either smoothed or regular DEM
@@ -60,7 +61,7 @@ def load_dem(path, smoothed = False) -> dict:
     }
 
     if smoothed:
-        temp['smoothed_elevation'] = elevation[valid_mask]
+        temp["smoothed_elevation"] = elevation[valid_mask]
     else:
         temp["elevation"] = elevation[valid_mask]
 

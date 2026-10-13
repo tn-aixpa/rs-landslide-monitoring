@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 
 
-def parse_storico_trentino_html(station_id:str, response_bytes: bytes) -> list[dict]:
+def parse_storico_trentino_html(station_id: str, response_bytes: bytes) -> list[dict]:
     """
     Parse through HTML table and turn it into list of dicts for writing/ further parsing
 
@@ -23,7 +23,7 @@ def parse_storico_trentino_html(station_id:str, response_bytes: bytes) -> list[d
             continue
 
         parsed_time = time_cell.get_text(strip=True)
-        if parsed_time == '':
+        if parsed_time == "":
             continue
 
         data_cells = tr.find_all("td", class_="tabledatacells")
@@ -34,6 +34,7 @@ def parse_storico_trentino_html(station_id:str, response_bytes: bytes) -> list[d
                 "datetime": time_cell.get_text(strip=True),
                 "piogga(mm)": data_cells[0].get_text(strip=True),
                 "qual": data_cells[1].get_text(strip=True),
-            })
-        
+            }
+        )
+
     return rows

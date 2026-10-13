@@ -21,9 +21,6 @@ The disadvantages are that it:
 2. Performs poorly in high rainfall events (see paper for more detail). Legitamate changes in climate due to global warming are smoothed out.
 3. Requires a large, consistent record of historical data, including data from regions outside of the study area.
 
-
-
-
 Lavoro in corso; questo progetto ha 3 stagine:
 1. Fare il confronto contro nostro codice e quella di Crespi et al. (Fatto, vedi `crespi_comparison.py` per documentazione e informazione sull'utilizzo)
 2. Produrre set di dati per il training del modello (non fatto)
@@ -40,9 +37,7 @@ Unfortunately,
 ### Why not Meteohub?
 
 (See also the How to download Meteohub data section.) Meteohub, available at https://meteobrowser.eurac.edu/app_direct/meteobrowser/ returns precipitation values
-that _do not match_ those from meteotrentino. The units are different, being returned in `kg m**-2`, but luckily this corresponds 1 -> 1 to `mm`. 
-
-Take station T0009 on 29/01/2026 for example; on meteo trentino it returns 35mm (so, a decent amount). On Meteohub for the same station + date, its 0. On the same day, a different station (T0380) meteotrentino returns 0.2, yet on meteohub its 12.6. Its not clear what causes this difference!
+that _do not match_ those from meteotrentino. The units are different, being returned in `kg m**-2`, but luckily this corresponds 1 -> 1 to `mm`. However, take station T0009 on 29/01/2026 for example; on meteo trentino it returns 35mm (so, a decent amount). On Meteohub for the same station + date, its 0. On the same day, a different station (T0380) meteotrentino returns 0.2, yet on meteohub its 12.6. Its not clear what causes this difference!
 
 An example of an independent system where the observations *DO* match is buergernetz vs https://weather.province.bz.it/en/download-data. Thank goodness!
 

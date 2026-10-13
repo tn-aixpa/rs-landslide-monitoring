@@ -3,7 +3,11 @@ import pandas as pd
 from constants import EPSILON
 
 
-def calculate_station_loo_sse(log_params_initial_guess: np.ndarray,sub_stations: pd.DataFrame,month_monthly_normals: pd.Series) -> float:
+def calculate_station_loo_sse(
+    log_params_initial_guess: np.ndarray,
+    sub_stations: pd.DataFrame,
+    month_monthly_normals: pd.Series,
+) -> float:
     """
     Performs leave one out (LOO) analysis to calculate sum-squared-error (sse)
     log_params: [log10(c_horizontal), log10(c_elevation)] for smooth optimizer stepping.

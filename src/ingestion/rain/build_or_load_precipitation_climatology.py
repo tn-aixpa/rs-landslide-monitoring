@@ -10,12 +10,13 @@ from setup_logging import setup_logging
 
 logger = setup_logging()
 
+
 def build_or_load_precipitation_climatology(
     rc: RunContext,
     stations: pd.DataFrame,
     monthly_normals: pd.DataFrame,
     grid: dict,
-    clean=False
+    clean=False,
 ) -> np.ndarray:
     """
     Vectorized PRISM-like climatology interpolation for all grid cells at once.
@@ -129,7 +130,7 @@ def build_or_load_precipitation_climatology(
         )
 
         rc.apply_mask_to_np_array(climatology_2d, profile["transform"])
-        
+
         masked_climatology_2d = rc.apply_mask_to_np_array(
             climatology_2d, profile["transform"]
         )
