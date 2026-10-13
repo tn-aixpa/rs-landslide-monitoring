@@ -4,9 +4,11 @@
 
 | Name    | Where to put | Notes
 | -------- | ------- | -------
-| January  | $250    | 
-| February | $80     |
-| March    | $420    |
+| trentino_observations.csv and bolzano_observations.csv  |  historical_rainfall_observations   |   Contains historical rainfall observations for anomaly and climatology creation
+| smoothed_elevation.tif | data_dir     | 30m DEM smoothed as per method in Crespi
+| boundary_reprojected.shp    | region_boundary_reprojected    | Boundary of region in EPSG:32632
+| boundary_reprojected.shp    | region_boundary_reprojected    | Boundary of region
+
 
 
 ## Methodology of Crespi

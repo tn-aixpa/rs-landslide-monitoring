@@ -90,7 +90,6 @@ def _download_bolzano_date_range(
     bolzano_daily_observations["DATE"] = parse_datetime(
         bolzano_daily_observations["DATE"].str[:10]
     )
-    # bolzano_daily_observations["DATE"] = pd.to_datetime(bolzano_daily_observations["DATE"].str.replace(":00CEST", "", regex=False))
 
     result = group_by_day(
         bolzano_daily_observations,
@@ -117,12 +116,26 @@ def _download_trentino_archive(
         date_from (pd.Timestamp): _description_
         date_to (pd.Timestamp): _description_
     """
+
+    '''
+    annoyingly this API uses the Etc/GMT-1 timezone
+    # meaning that first days of the month's data is split between files
+    # if we use CET.
+    '''
+    date_from - pd.DateOffset(months = 1)
+
     periods = pd.period_range(
         start=date_from.to_period("M"), end=date_to.to_period("M"), freq="M"
     )
     to_loop_over = [(p.year, p.month) for p in periods]
     session = build_resilient_session()
-    grouped_list = []
+
+    '''
+    It would be more memory efficient to group first, then concat the groups.
+    However, because month data is effectively split between months, list first, then
+    group.
+    '''
+    df_list = []
     # TODO: Consider caching everything except current month
     for combo in to_loop_over:
         year = combo[0]
@@ -133,25 +146,24 @@ def _download_trentino_archive(
         df = pd.read_parquet(io.BytesIO(response.content))
 
         df = df[df["code"] == "10.00"]  # Rain code
-        df = df[df["quality"].isin([1, 2, 3, 145])]  # These are the only valid codes
+        df = df[df["quality"].isin([1, 2, 3, 145])] # 145 is teletransmission
         # Make days line up
         df["time"] = df["time"].dt.tz_convert("Europe/Rome")
         df = df[df["time"] >= date_from]
         df = df[df["time"] < date_to + pd.Timedelta(hours=24)]
+        df_list.append(df)
+    
+    concatted: pd.DataFrame = pd.concat(df_list)
+    grouped = group_by_day(concatted, "time", "value", group_by_extras=["station"])
+    grouped["date"] = grouped["time"].dt.tz_localize(None)
 
-        grouped = group_by_day(df, "time", "value", group_by_extras=["station"])
-        grouped_list.append(grouped)
-
-    concatted: pd.DataFrame = pd.concat(grouped_list)
-    concatted["date"] = concatted["time"].dt.tz_localize(None)
-
-    concatted = concatted.drop(["time"], axis=1)
-    concatted = concatted.rename(
+    grouped = grouped.drop(["time"], axis=1)
+    grouped = grouped.rename(
         columns={"value": "precipitation", "station": "station_id"}
     )
-    concatted["qual"] = 1
+    grouped["qual"] = 1
 
-    return concatted
+    return grouped
 
 
 def time_range_download(logger: Logger, context: RunContext, date_from: pd.Timestamp, date_to: pd.Timestamp) -> pd.DataFrame:

@@ -1,5 +1,5 @@
 """
-Hello
+Used to create daily interpolated data which can then be aggregated.
 """
 
 import argparse
@@ -76,12 +76,13 @@ if __name__ == "__main__":
 
     if date_to < date_from:
         raise AssertionError(f"{date_from} must be before {date_to}")
-
-    logger.info(f"Considering {date_from} to {date_to}")
+    time_delta = date_to - date_from
+    logger.info(f"Considering {time_delta.days} days between {date_from:%d/%m/%Y} to {date_to:%d/%m/%Y}")
     run_context = RunContext(data_dir)
     run_context.setup()
 
     daily_observations_df = time_range_download(logger, run_context, date_from, date_to)
+
     # Historical observations are used to calculate daily anomaly. Meterological concept used for this model.
     # Unfortunately this means mixing time formats; unlikely to result in inaccuracy.
     historical_observations = read_observation_data(
