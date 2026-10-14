@@ -3,7 +3,7 @@ PRISM-like anomaly interpolation for daily precipitation.
 
 Questo script e' usato per fare un confronto contro nostro codice e quella di Crespi et al.
 
-A tal fine, questo script legge come input 
+A tal fine, questo script legge come input
 1. il DEM come un .tif
 2. il set di dati per i stazione come .csv
 3. I set di dati per le osservazione come .csv
@@ -14,10 +14,6 @@ il set di dati di addestramento; 2. i set di dati quotidiano.
 This will use all CPUs available through joblib to parallelize the process.
 
 Se non c'e' piove per un giorno in particolare, non produciamo output per quell giorno (100% mask)
-
-TODO list:
-- Argument help to italian
-- Rework `grid` variable
 
 """
 
@@ -31,10 +27,14 @@ import rasterio
 from build_daily_observations_geojson import (
     build_daily_observations_geojson,
 )
+from calculate_station_loo_sse import calculate_station_loo_sse
+from constants import EPSILON, THREADING_PREFERENCE
 from context import RunContext
 from delete_all_from_folder import delete_all_from_folder
+from interpolate_single_day_worker import interpolate_single_day_worker
 from is_debugging import is_debugging
 from joblib import Parallel, delayed
+from load_dem import load_dem
 from parse_datetime import parse_datetime
 from read_observation_data import read_observation_data
 from read_station_data import read_station_data
@@ -44,80 +44,14 @@ from setup_logging import setup_logging
 
 logger = setup_logging()
 
-EPSILON = 1e-12
-
 SMOOTHING_RADIUS = 10_000
 SMOOTHING_HALF_DISTANCE = 2_000.0
 N_JOBS = 4
 
 if is_debugging():
+    # There are some weird C library shenanigans that cause the debug session to crash when debugging in vscode debugger
     logger.info("Debugging detected, switching to single threading mode")
     N_JOBS = 1
-
-THREADING_PREFERENCE = "processes"
-
-
-def calculate_station_loo_sse(
-    log_params_initial_guess: np.ndarray,
-    sub_stations: pd.DataFrame,
-    month_monthly_normals: pd.Series,
-) -> float:
-    """
-    Performs leave one out (LOO) analysis to calculate sum-squared-error (sse)
-    log_params: [log10(c_horizontal), log10(c_elevation)] for smooth optimizer stepping.
-    """
-    c_horiz = 10 ** log_params_initial_guess[0]
-    c_elev = 10 ** log_params_initial_guess[1]
-
-    station_xs = sub_stations["x"].to_numpy(dtype=float)
-    station_ys = sub_stations["y"].to_numpy(dtype=float)
-    station_zs = sub_stations["elevation"].to_numpy(dtype=float)
-    obs = sub_stations["station_id"].map(month_monthly_normals).to_numpy(dtype=float)
-
-    station_count = len(station_xs)
-    if station_count < 3:
-        return np.inf
-
-    dx = station_xs[:, None] - station_xs[None, :]
-    dy = station_ys[:, None] - station_ys[None, :]
-    dz = station_zs[:, None] - station_zs[None, :]
-
-    dist_sq = dx**2 + dy**2
-    dz_sq = dz**2
-
-    W = np.exp(-dist_sq / c_horiz) * np.exp(-dz_sq / c_elev)
-    np.fill_diagonal(W, 0.0)  # Exclude LOO station
-    A11 = W.sum(axis=1)
-    A12 = (W * station_zs[None, :]).sum(axis=1)
-    A22 = (W * (station_zs[None, :] ** 2)).sum(axis=1)
-
-    b1 = (W * obs[None, :]).sum(axis=1)
-    b2 = (W * station_zs[None, :] * obs[None, :]).sum(axis=1)
-
-    det = A11 * A22 - (A12**2)
-    valid_det = det > 1e-10
-
-    alpha = np.zeros(
-        station_count, dtype=float
-    )  # Cramer's rule for WLS coefficients alpha & beta
-    beta = np.zeros(station_count, dtype=float)
-
-    alpha[valid_det] = (
-        A22[valid_det] * b1[valid_det] - A12[valid_det] * b2[valid_det]
-    ) / det[valid_det]
-    beta[valid_det] = (
-        A11[valid_det] * b2[valid_det] - A12[valid_det] * b1[valid_det]
-    ) / det[valid_det]
-    pred = (
-        alpha + beta * station_zs
-    )  # Predict value at target station i using its elevation
-
-    fallback = ~valid_det & (A11 > EPSILON)  # Fallback if ill-conditioned
-    pred[fallback] = b1[fallback] / A11[fallback]
-    pred = np.maximum(0.0, pred)
-    sse = float(np.sum((obs - pred) ** 2))
-
-    return sse
 
 
 def optimize_decay_params_for_month_worker(
@@ -167,35 +101,6 @@ def optimize_decay_params_for_month_worker(
     }
 
 
-def optimize_daily_decay(
-    day: pd.Timestamp,
-    stations: pd.DataFrame,
-    daily_observations: pd.DataFrame,
-    initial_c_horiz: float = 412458716,
-    initial_c_elev: float = 2.380205848486982e21,
-):
-    """
-    TODO: combine with optimize_decay_params_for_month
-    """
-    first_parameter_guess = np.log10([initial_c_horiz, initial_c_elev])
-    daily_precip_series = daily_observations.set_index("station_id")["precipitation"]
-    sub_stations = stations[
-        stations["station_id"].isin(daily_precip_series.index)
-    ].copy()
-
-    minimized_result = minimize(
-        fun=calculate_station_loo_sse,
-        x0=first_parameter_guess,
-        args=(sub_stations, daily_precip_series),
-        method="Nelder-Mead",
-    )
-
-    best_c_horiz = 10 ** minimized_result.x[0]
-    best_c_elev = 10 ** minimized_result.x[1]
-
-    return {"day": day, "horizontal": best_c_horiz, "elevation": best_c_elev}
-
-
 def fast_parallel_parameter_search(
     stations: pd.DataFrame, monthly_normals: pd.DataFrame
 ) -> dict:
@@ -227,51 +132,6 @@ def fast_parallel_parameter_search(
     return optimized_decay_params
 
 
-def load_dem(path):
-    with rasterio.open(path) as src:
-        elevation = src.read(1).astype(float)
-        profile = src.profile.copy()
-        nodata = src.nodata
-        transform = src.transform
-        crs = src.crs
-
-    if nodata is not None:
-        valid_mask = elevation != nodata
-        elevation[~valid_mask] = np.nan
-    else:
-        valid_mask = np.isfinite(elevation)
-
-    rows, cols = np.indices(elevation.shape)
-
-    x, y = rasterio.transform.xy(
-        transform,
-        rows,
-        cols,
-        offset="center",
-    )
-
-    # rasterio may return flattened coordinate arrays.
-    # Restore them to the same 2D shape as the DEM.
-    x = np.asarray(x, dtype=float).reshape(elevation.shape)
-    y = np.asarray(y, dtype=float).reshape(elevation.shape)
-
-    return {
-        "elevation_2d": elevation,
-        "valid_mask_2d": valid_mask,
-        "x_2d": x,
-        "y_2d": y,
-        # Flattened valid cells used by interpolation.
-        "x": x[valid_mask],
-        "y": y[valid_mask],
-        "elevation": elevation[valid_mask],
-        "shape": elevation.shape,
-        "transform": transform,
-        "crs": crs,
-        "profile": profile,
-        "nodata": nodata,
-    }
-
-
 def smooth_elevation(
     rc: RunContext, grid, radius=SMOOTHING_RADIUS, half_distance=SMOOTHING_HALF_DISTANCE
 ):
@@ -279,6 +139,8 @@ def smooth_elevation(
     Cacky implementation of smoothing a DEM - don't use a kernel, use brush-like smoothing using
     inefficient tree-structure.
     Use parameters from Crespi paper for smoothing
+
+    Crucially, this process does not reduce the resolution of the DEM, that step is done manually beforehand.
     """
     x = grid["x"]
     y = grid["y"]
@@ -297,11 +159,11 @@ def smooth_elevation(
 
         # Do not mask here; stations in Austria need their elevation too
         # masked_smoothed_elevation_2d = rc.apply_mask_to_np_array(smoothed_elevation_2d, profile['transform'])
-        with rasterio.open(rc.SMOOTHED_DEM_PATH, "w", **profile) as dst:
+        with rasterio.open(rc.smoothed_dem_path, "w", **profile) as dst:
             dst.write(smoothed_elevation_2d, 1)
 
     def reload_smoothed():
-        with rasterio.open(rc.SMOOTHED_DEM_PATH) as src:
+        with rasterio.open(rc.smoothed_dem_path) as src:
             smoothed_elevation_2d = src.read(1)
             smoothed_nodata = src.nodata
             if smoothed_nodata is not None:
@@ -309,7 +171,7 @@ def smooth_elevation(
         # Convert back to the same flattened valid-cell structure used by the interpolation code.
         grid["smoothed_elevation"] = smoothed_elevation_2d[grid["valid_mask_2d"]]
 
-    if os.path.exists(rc.SMOOTHED_DEM_PATH):
+    if os.path.exists(rc.smoothed_dem_path):
         logger.info("Smoothed DEM found, reloading...")
         return reload_smoothed()
 
@@ -374,7 +236,7 @@ def calculate_monthly_normals(observations: pd.DataFrame) -> pd.DataFrame:
     return normals
 
 
-def build_precipitation_climatology(
+def build_or_load_precipitation_climatology(
     rc: RunContext,
     stations: pd.DataFrame,
     monthly_normals: pd.DataFrame,
@@ -383,19 +245,21 @@ def build_precipitation_climatology(
 ) -> np.ndarray:
     """
     Vectorized PRISM-like climatology interpolation for all grid cells at once.
+
+    If the climatology doesn't exist, create it, otherwise just load it from tif files
     """
     n_cells = len(grid["x"])
 
     climatology = np.empty((12, n_cells), dtype=np.float32)
 
     climatology_paths = [
-        rc.CLIMATOLOGY_OUTPUT_DIR / f"precipitation_climatology_month_{month:02d}.tif"
+        rc.climatology_output_dir / f"precipitation_climatology_month_{month:02d}.tif"
         for month in range(1, 13)
     ]
 
     if clean:
         logger.info("Cleaning old precipitation climatology")
-        delete_all_from_folder(str(rc.CLIMATOLOGY_OUTPUT_DIR))
+        delete_all_from_folder(str(rc.climatology_output_dir))
 
     if all(os.path.exists(path) for path in climatology_paths):
         logger.info("Loading existing monthly climatology grids...")
@@ -468,7 +332,7 @@ def build_precipitation_climatology(
 
         climatology[month - 1] = np.maximum(0.0, pred).astype(np.float32)
 
-    os.makedirs(rc.CLIMATOLOGY_OUTPUT_DIR, exist_ok=True)
+    os.makedirs(rc.climatology_output_dir, exist_ok=True)
     profile = grid["profile"].copy()
     profile.update(
         dtype=rasterio.float32,
@@ -485,12 +349,12 @@ def build_precipitation_climatology(
         climatology_2d = np.full(grid["shape"], np.nan, dtype=np.float32)
         climatology_2d[grid["valid_mask_2d"]] = climatology[month]
         output_path = (
-            rc.CLIMATOLOGY_OUTPUT_DIR
+            rc.climatology_output_dir
             / f"precipitation_climatology_month_{month + 1:02d}.tif"
         )
 
         rc.apply_mask_to_np_array(climatology_2d, profile["transform"])
-        
+
         masked_climatology_2d = rc.apply_mask_to_np_array(
             climatology_2d, profile["transform"]
         )
@@ -503,103 +367,11 @@ def build_precipitation_climatology(
             dst.write(masked_climatology_2d, 1)
 
     with rasterio.open(
-        rc.CLIMATOLOGY_OUTPUT_DIR / "summed_climatology.tif", "w", **profile
+        rc.climatology_output_dir / "summed_climatology.tif", "w", **profile
     ) as dst:
         dst.write(summed_climatology, 1)
 
     return climatology
-
-
-def calculate_precipitation_anomalies(
-    daily_observations: pd.DataFrame, station_monthly_normals: pd.DataFrame
-):
-    """
-    What were the precipitation anomalies on this day compared with the average climatology?
-    """
-
-    day = daily_observations.copy()
-    month = pd.Timestamp(day["date"].iloc[0]).month
-
-    normals = station_monthly_normals[station_monthly_normals["month"] == month][
-        [
-            "station_id",
-            "normal",
-        ]
-    ]
-
-    day = day.merge(normals, on="station_id", how="inner")
-    day = day[day["normal"] > EPSILON].copy()
-    day["anomaly"] = day["precipitation"] / day["normal"]
-
-    return day
-
-
-def interpolate_daily_precipitation_vectorized(
-    daily_observations: pd.DataFrame,
-    stations: pd.DataFrame,
-    monthly_normals: pd.DataFrame,
-    monthly_climatology: np.ndarray,
-    grid: dict,
-    daily_decay_parameters: dict,
-) -> np.ndarray:
-    """
-    Calcula precipitazione per un giorno in particulare
-    Calculate precipitation on a particular day
-    """
-    anomalies = calculate_precipitation_anomalies(daily_observations, monthly_normals)
-    if len(anomalies) == 0:
-        return np.full(len(grid["x"]), np.nan, dtype=np.float32)
-
-    station_metadata = stations[
-        stations["station_id"].isin(anomalies["station_id"])
-    ].copy()
-    anomalies = (
-        anomalies.set_index("station_id")
-        .loc[station_metadata["station_id"]]
-        .reset_index()
-    )
-
-    n_stations = len(station_metadata)
-
-    sx = station_metadata["x"].to_numpy(dtype=float)[:, None]
-    sy = station_metadata["y"].to_numpy(dtype=float)[:, None]
-    sz = station_metadata["elevation"].to_numpy(dtype=float)[:, None]
-
-    gx = grid["x"][None, :]
-    gy = grid["y"][None, :]
-    gz = grid["smoothed_elevation"][None, :]
-
-    dist_sq = (sx - gx) ** 2 + (sy - gy) ** 2
-    dz_sq = (sz - gz) ** 2
-
-    c_horiz = daily_decay_parameters["horizontal"]
-    c_elev = daily_decay_parameters["elevation"]
-
-    weights = np.exp(-dist_sq / c_horiz) * np.exp(-dz_sq / c_elev)
-
-    total_weights = weights.sum(axis=0)
-    station_anomalies = anomalies["anomaly"].to_numpy(dtype=float)  # (S,)
-
-    anomaly_grid = np.where(
-        total_weights > EPSILON, (weights.T @ station_anomalies) / total_weights, np.nan
-    )
-
-    # Final daily estimate multiplication
-    date = pd.Timestamp(daily_observations["date"].iloc[0])
-    climatology = monthly_climatology[date.month - 1]
-
-    estimate = anomaly_grid * climatology
-
-    # dry-day constraint (3 nearest stations check)
-    obs_precip = anomalies["precipitation"].to_numpy(dtype=float)  # (S,)
-    if n_stations >= 3:
-        # kth=2 partitions the array so the 3 smallest elements are in positions 0, 1, 2
-        nearest_3_indices = np.argpartition(dist_sq, 2, axis=0)[:3, :]
-        nearest_3_precip = obs_precip[nearest_3_indices]
-        all_dry = np.all(nearest_3_precip == 0.0, axis=0)
-        estimate[all_dry] = 0.0
-
-    return np.maximum(0.0, estimate).astype(np.float32)
 
 
 def main(
@@ -609,25 +381,24 @@ def main(
     climatology_single_month: str | None = None,
     clean=False,
 ):
-    os.makedirs(rc.OUTPUT_DIRECTORY, exist_ok=True)
+    os.makedirs(rc.output_directory, exist_ok=True)
 
     logger.info("Loading DEM...")
-    grid = load_dem(rc.DEM_PATH)
+    grid = load_dem(rc.dem_path)
 
     smooth_elevation(rc, grid)
 
     logger.info("Loading station data...")
-    stations = read_station_data(rc.STATIONS_PATH, run_context.SMOOTHED_DEM_PATH)
+    stations = read_station_data(
+        rc.historical_stations_path, run_context.smoothed_dem_path
+    )
     observations = read_observation_data(
-        rc.observations_files, rc.reference_start, rc.reference_end
+        rc.historical_observations_files, rc.reference_start, rc.reference_end
     )
     logger.info("Calculating monthly normals...")
 
     monthly_normals = calculate_monthly_normals(observations)
-    
-    monthly_normals.to_csv(
-        str(data_dir / 'temp' / 'monthly_normals.csv'), index=False
-    )
+    monthly_normals.to_csv(str(data_dir / "temp" / "monthly_normals.csv"), index=False)
 
     run_context.climatology_decay_parameters = fast_parallel_parameter_search(
         stations, monthly_normals
@@ -643,7 +414,7 @@ def main(
     logger.info("Building monthly precipitation climatology...")
 
     # monthly_climatology looks like [12, [grid_x * grid_y]] array; one entry per month
-    monthly_climatology = build_precipitation_climatology(
+    monthly_climatology = build_or_load_precipitation_climatology(
         rc, stations=stations, monthly_normals=monthly_normals, grid=grid, clean=clean
     )
 
@@ -654,82 +425,6 @@ def main(
     if climatology_only:
         logger.info("Climatology only, exiting")
         return
-
-    def interpolate_single_day_worker(
-        date1: np.datetime64,
-        observations: pd.DataFrame,
-        stations: pd.DataFrame,
-        monthly_normals: pd.DataFrame,
-        monthly_climatology: np.ndarray,
-        grid: dict,
-    ):
-        logger = setup_logging()
-        date = pd.Timestamp(date1)
-        date_str = f"{date:%d/%m/%Y}"
-        logger.info(f"Interpolating {date_str}")
-
-        # Keep all station observations for the date (including 0 mm precip)
-        daily_observations = observations[observations["date"] == date]
-
-        # TODO: Could check this against Crespi data
-        if (
-            len(daily_observations) == 0
-            or (daily_observations["precipitation"] == 0).all()
-        ):
-            logger.info(
-                f"Skipping output for {date_str} as day was observed completely dry"
-            )
-            return
-
-        daily_decay_parameters = optimize_daily_decay(
-            date, stations, daily_observations
-        )
-        precipitation_valid_cells = interpolate_daily_precipitation_vectorized(
-            daily_observations=daily_observations,
-            stations=stations,
-            monthly_normals=monthly_normals,
-            monthly_climatology=monthly_climatology,
-            grid=grid,
-            daily_decay_parameters=daily_decay_parameters,
-        )
-
-        def valid_cells_to_raster(values: np.ndarray, grid, nodata=np.nan):
-            """
-            Convert a 1D array of interpolated valid cells back into
-            the original 2D DEM raster shape. Kinda rubbish that we have to do this
-            TODO: get rid of this
-            """
-            raster = np.full(grid["shape"], nodata, dtype=np.float32)
-            raster[grid["valid_mask_2d"]] = values
-            return raster
-
-        precipitation_raster = valid_cells_to_raster(
-            values=precipitation_valid_cells, grid=grid
-        )
-        date_str = date.strftime(rc.output_file_time_format)
-        output_path = rc.OUTPUT_DIRECTORY / f"fleming_{date_str}.tif"
-
-        if np.all(np.isnan(precipitation_raster) | (precipitation_raster == 0)):
-            logger.info(
-                f"Skipping output for {date_str} as day evaluated to dry across grid"
-            )
-        else:
-            masked_precipitation_raster = rc.apply_mask_to_np_array(
-                precipitation_raster, grid["profile"]["transform"]
-            )
-
-            profile = grid["profile"].copy()
-            profile.update(
-                dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate"
-            )
-            with rasterio.open(
-                output_path,
-                "w",
-                **profile,
-            ) as dst:
-                dst.write(masked_precipitation_raster.astype(np.float32), 1)
-
-            logger.info(f"Saved: {output_path}")
 
     observations = observations[
         observations["date"] >= run_context.interpolation_start_date
@@ -750,14 +445,19 @@ def main(
         daily_observations = observations[observations["date"] == single_day]
         single_day_date_str = single_day.strftime(rc.output_file_time_format)
         geojson_output_path = (
-            rc.OUTPUT_DIRECTORY / f"fleming_{single_day_date_str}.geojson"
+            rc.output_directory / f"daily_{single_day_date_str}.geojson"
         )
+
         build_daily_observations_geojson(
             geojson_output_path, daily_observations, stations
         )
 
+    logger.info("Deleting all previous daily outputs...")
+    delete_all_from_folder(str(rc.output_directory))
+
     Parallel(n_jobs=N_JOBS, prefer=THREADING_PREFERENCE)(
         delayed(interpolate_single_day_worker)(
+            run_context=run_context,
             date1=date,
             observations=observations,
             stations=stations,
@@ -803,11 +503,16 @@ if __name__ == "__main__":
     )
     debug.add_argument(
         "--single-day",
-        help="Debug option. Use this if you want to interpolate only a single day of output",
+        help="Debug option. Use this if you want to interpolate only a single day of output. Format dd/mm/yyyy",
     )
     debug.add_argument(
         "--climatology-single-month",
         help="Debug option. Calculate climatology for a single month and then exit. 1 indexed",
+    )
+    debug.add_argument(
+        "--province",
+        choices=["trentino", "bolzano"],
+        help="If set, only calculate climateology and results for specified province",
     )
 
     args = ap.parse_args()
@@ -817,6 +522,7 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"{data_dir} does not exist!")
 
     run_context = RunContext(data_dir)
+    run_context.setup(args.province)
 
     run_context.interpolation_start_date = parse_datetime(args.interpolation_start_date)
     run_context.interpolation_end_date = parse_datetime(args.interpolation_end_date)

@@ -2,6 +2,7 @@
 Parses number format from netcdf file output of Crespi, also flips raster upside-down
 to fix weird R conventions which don't match those of GDAL
 """
+
 import argparse
 import os
 import subprocess
@@ -40,7 +41,7 @@ for band in range(d_2017, d_2017 + 366):
             "gdal_translate",
             "-b",
             f"{band}",
-            str(data_dir/ "DailySeries_1980_2018_Prec.nc"),
+            str(data_dir / "DailySeries_1980_2018_Prec.nc"),
             tmp_out_path_str,
             "-co",
             "-a_srs",

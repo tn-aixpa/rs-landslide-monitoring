@@ -14,10 +14,9 @@ class RunContext:
     def __init__(self, data_dir: Path):
 
         # Include data in this range during calculation of climatology
-        # TODO: Inclusive?
-        self.reference_start = parse_datetime(
-            "01/01/1985"
-        )  # Not many station observations before here
+        # These are both _inclusive_
+        # Not many station observations before 1985
+        self.reference_start = parse_datetime("01/01/1985")
         self.reference_end = parse_datetime("31/12/2025")  # bolzano values stop here
 
         # Include data in this range during daily interpolation calculation
@@ -26,44 +25,35 @@ class RunContext:
         self.climatology_decay_parameters = {}
         self.data_dir = data_dir
 
-        self.DEM_PATH = data_dir / "dem.tif"
-        self.SMOOTHED_DEM_PATH = data_dir / "smoothed_elevation.tif"
+        self.dem_path = data_dir / "dem.tif"
+        self.smoothed_dem_path = data_dir / "smoothed_elevation.tif"
 
-        self.STATIONS_PATH = (
-            data_dir / "stations_reprojected" / "filtered_stations_9am.csv"
+        self.historical_stations_path = (
+            data_dir / "stations_reprojected" / "trentino_stations.csv"
         )
-        self.OBSERVATIONS_PATH = (
-            data_dir
-            / "rainfall_observations"
-            / "trentino_observations"
-            / "observations_9am.csv"
+        self.historical_trentino_observations_path = (
+            data_dir / "historical_rainfall_observations" / "trentino_observations.csv"
         )
-        self.AU_OBSERVATIONS_PATH = data_dir / "temp" / "austria_grouped_9am.csv"
-        self.BOLZANO_OBSERVATIONS_PATH = (
-            data_dir / "rainfall_observations" / "bolzano_observations.csv"
+        # We check if this exists before reading. Not compulsary.
+        self.historical_austria_observations_path = (
+            data_dir / "historical_rainfall_observations" / "austria_grouped_9am.csv"
         )
-        # CH_OBSERVATIONS_PATH = data_dir /  'rainfall_observations' / 'merged_swiss.csv'
-        self.observations_files = [
-            self.OBSERVATIONS_PATH,
-            self.AU_OBSERVATIONS_PATH,
-            self.BOLZANO_OBSERVATIONS_PATH,
-        ]
-
-        self.OUTPUT_DIRECTORY = data_dir / "output" / "interpolated_daily_output"
-
-        self.WRITE_CLIMATOLOGIES = True
-        self.CLIMATOLOGY_OUTPUT_DIR = data_dir / "output" / "climatology"
-
-        self.BOUNDARY_DATASET = (
-            data_dir / "boundary_reprojected" / "boundary_reprojected.shp"
+        self.historical_bolzano_observations_path = (
+            data_dir / "historical_rainfall_observations" / "bolzano_observations.csv"
         )
+        self.historical_observations_files = None
+        self.output_directory = data_dir / "output" / "interpolated_daily_output"
 
-        # TODO: move to static constructor
-        self.boundary_polygon_shapes = read_boundary_dataset(self.BOUNDARY_DATASET)
+        self.write_climatologies = True
+        self.climatology_output_dir = data_dir / "output" / "climatology"
 
         self.output_file_time_format = "%d_%m_%Y"
 
         self.crespi_data_folder = data_dir / "crespi_data"
+
+        self.bolzano_daily_stations_path = (
+            data_dir / "stations_reprojected" / "alto_adige_stations.csv"
+        )
 
     def apply_mask_to_np_array(self, np_array, transform):
         """
@@ -76,3 +66,38 @@ class RunContext:
             invert=False,
         )
         return np.ma.MaskedArray(np_array, mask_climatology_2d)
+
+    def setup(self, province: str | None = None):
+        """
+        Args:
+            province (str | None, optional): Set this only during comparison of results when cutting out alto-adige data. Defaults to None.
+
+        Raises:
+            ValueError: _description_
+        """
+        self.historical_observations_files = [
+            self.historical_trentino_observations_path
+        ]
+        if province is None:
+            boundary_dataset = (
+                self.data_dir
+                / "region_boundary_reprojected"
+                / "boundary_reprojected.shp"
+            )
+            # Miss off bolzano and austria observations if just considering trentino.
+            self.historical_observations_files = self.historical_observations_files + [
+                self.historical_bolzano_observations_path,
+            ]
+        elif province == "trentino":
+            boundary_dataset = (
+                self.data_dir / "boundary_reprojected" / "boundary_reprojected.shp"
+            )
+        else:
+            raise ValueError(f"Province {province} was not a recognised option")
+
+        if self.historical_austria_observations_path.exists():
+            self.historical_observations_files.append(
+                self.historical_austria_observations_path
+            )
+
+        self.boundary_polygon_shapes = read_boundary_dataset(boundary_dataset)

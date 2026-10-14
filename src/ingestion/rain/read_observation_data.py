@@ -5,8 +5,12 @@ import pandas as pd
 from parse_datetime import parse_datetime
 
 BAD_OBSERVATION_CODES = [
+    70,  # dato stimato (come da Annale Idrologico)
+    76,  # dato interpolato (come da Annale Idrologico)
     90,  # Delayed because of snow
     140,  # Uncertain data
+    151,  # dato mancante
+    255,  # dato mancante
 ]
 
 
@@ -48,20 +52,25 @@ def read_observation_data(
         df_list.append(observations)
 
     observations = pd.concat(df_list)
-    observations = observations.dropna(subset="piogga(mm)")
-
-    observations = observations[
-        ~observations["qual"].isin(BAD_OBSERVATION_CODES)
-    ]  # drop bad data rows
-
-    observations["precipitation"] = pd.to_numeric(
-        observations["piogga(mm)"], errors="coerce"
-    )
 
     if reference_start:
         observations = observations[observations["date"] >= reference_start]
     if reference_end:
         observations = observations[observations["date"] <= reference_end]
 
+    return post_process_trentino_observations(observations)
+
+
+def post_process_trentino_observations(observations: pd.DataFrame) -> pd.DataFrame:
+    observations = observations.dropna(subset="piogga(mm)").copy()
+
+    observations["qual"] = observations["qual"].astype("int")
+    observations = observations[
+        ~observations["qual"].isin(BAD_OBSERVATION_CODES)
+    ]  # drop bad data rows
+    observations["precipitation"] = pd.to_numeric(observations["piogga(mm)"])
+
     observations["station_id"] = observations["station_id"].astype("str")
-    return observations.drop(["piogga(mm)", "datetime"], axis=1)
+    # datetime col is the raw, unparsed string version from API.
+    # qual not needed after this point
+    return observations.drop(["piogga(mm)", "datetime", "qual"], axis=1)

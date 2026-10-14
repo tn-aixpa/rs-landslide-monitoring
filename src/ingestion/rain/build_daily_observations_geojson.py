@@ -1,6 +1,7 @@
-'''
+"""
 Output file used for debugging single day outputs in QGIS
-'''
+"""
+
 from pathlib import Path
 
 import geopandas as gpd
@@ -26,7 +27,9 @@ def build_daily_observations_geojson(
         merged, geometry=gpd.points_from_xy(merged.x, merged.y), crs=f"EPSG:{EPSG_CODE}"
     )
     gdf = gdf.drop(["date", "provincia", "qual", "x", "y"], axis=1)
-    gdf["precipitation"] = gdf["precipitation"].astype(int)
+    gdf["precipitation"] = gdf["precipitation"].astype(
+        int
+    )  # lazy, round it for easy display in QGIS
     json_str = gdf.to_json(indent=4)
     with open(output_file_path, "w") as f:
         f.write(json_str)

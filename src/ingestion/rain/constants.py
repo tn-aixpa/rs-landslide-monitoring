@@ -1,1 +1,4 @@
 EPSG_CODE = 32632
+EPSILON = 1e-12
+THREADING_PREFERENCE = "processes"
+TIME_ZONE = "Europe/Rome"

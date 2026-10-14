@@ -1,149 +1,59 @@
-# Precipitazione
+# Rainfall interpolation
 
-Lavoro in corso; questo progetto ha 3 stagine:
-1. Fare il confronto contro nostro codice e quella di Crespi et al. (Fatto, vedi `crespi_comparison.py` per documentazione e informazione sull'utilizzo)
-2. Produrre set di dati per il training del modello (non fatto)
-3. Scaricare set di dati del tempo giornaliero per previsione (non fatto)
+## Quickstart
 
-Bear in mind that all rain datasets have two time period formats; a historical form that runs from 9am of day 1 to 9am of day 2, and another which runs from UTC midnight day 1 to UTC midnight day 2. For the Crespi comparison, we use the 9am
-
-
-## Creare set di dati input
-
-### Stazione 
-
-Primo di tutto, dobbiamo scaricare i set di dati delle stazioni meteorologiche. 
-
-#### Trentino
-
-Meteo trentino - http://storico.meteotrentino.it/
-
-#### Bolzano
-
-Dati sono disponibile fino a 31/12/2025; [scarica qui](https://meteo.provincia.bz.it/it/download-dati)
-
-Forse anche:
-https://meteobrowser.eurac.edu/app_direct/meteobrowser/
-
-#### Austria
-
-Austria reports measurements in both daily and hourly intervals. The hourly interval data has less coverage in terms of stations and dates than the daily intervals. So we instead download the hourly rate and then aggregate using that, taking account of daylight saving times and the like.
-
-
-### DEM
-
-Abbiamo usato quella di Copernicus con risoluzione di 30m.
-
-
-### How to download Meteohub data
-
-The main URL is the faith inspiring: https://meteohub.agenziaitaliameteo.it:7777/#/
-POST this to /api/data 
-```json
-{
-  "request_name": "you_want_what_now",
-  "reftime": {
-    "from": "2026-01-29T00:01:00.000Z",
-    "to": "2026-01-29T23:59:00.000Z"
-  },
-  "dataset_names": [
-    "open-trentino"
-  ],
-  "filters": {
-    "product": [
-      {
-        "code": "B13011",
-        "desc": "TOTAL PRECIPITATION / TOTAL WATER EQUIVALENT",
-        "active": true
-      }
-    ]
-  },
-  "output_format": "json",
-  "only_reliable": true,
-  "postprocessors": [
-    
-  ],
-  "force_obs_download": true
-}
-```
-which responds with:
-```json
-{
-  "request_id": 5374222,
-  "task_id": "1afd8edb-64cf-425c-b8ec-6026282d4b30"
-}
+The main script is `daily_rain_interpolation.py` which builds .tif files of rainfall over the province, one .tif per day over the specified range.
+An example of usage:
+```sh
+python daily_rain_interpolation.py --data-dir=/project/data --date-from=29/06/2026 --date-to=10/07/2026
 ```
 
-/api/requests
+The following datasets are required and placed in the project data directory specified by the `--data-dir` argument.
 
-```json
-[
-  {
-    "id": 5374222,
-    "name": "you_want_what_now",
-    "args": {
-      "filters": {
-        "product": [
-          {
-            "code": "B13011",
-            "desc": "TOTAL PRECIPITATION / TOTAL WATER EQUIVALENT",
-            "active": true
-          }
-        ]
-      },
-      "reftime": {
-        "to": "2026-01-29T23:59:00.000000Z",
-        "from": "2026-01-29T00:01:00.000000Z"
-      },
-      "only_reliable": true,
-      "output_format": "json",
-      "postprocessors": [],
-      "dataset_names": [
-        "open-trentino"
-      ]
-    },
-    "submission_date": "2026-10-05T15:06:05.674482",
-    "status": "PENDING",
-    "task_id": "1afd8edb-64cf-425c-b8ec-6026282d4b30",
-    "opendata": false
-  },
-  {
-    "id": 5373508,
-    "name": "testjson",
-    "args": {
-      "filters": {
-        "product": [
-          {
-            "code": "B13011",
-            "desc": "TOTAL PRECIPITATION / TOTAL WATER EQUIVALENT",
-            "active": true
-          }
-        ]
-      },
-      "reftime": {
-        "to": "2026-10-04T00:00:00.000000Z",
-        "from": "2026-10-03T00:00:00.000000Z"
-      },
-      "only_reliable": true,
-      "output_format": "json",
-      "dataset_names": [
-        "open-trentino"
-      ]
-    },
-    "submission_date": "2026-10-05T13:28:10.915629",
-    "status": "SUCCESS",
-    "task_id": "e853d976-6d4c-4bcd-b78f-1f304353a499",
-    "opendata": false,
-    "end_date": "2026-10-05T13:28:13.412641",
-    "fileoutput": "data-20261005T132812Z-e853d976-6d4c-4bcd-b78f-1f304353a499.json",
-    "filesize": 4586416
-  }
-]
+| Name    | Where to put | Notes | Source
+| -------- | ------- | ------- | -------
+| trentino_observations.csv and bolzano_observations.csv  |  historical_rainfall_observations   |   Contains historical rainfall observations for anomaly and climatology creation | 
+| daily_stations_alto_adige_filtered_reprojected.csv | stations_reprojected | Locations and station id for alto adige stations that have a rain sensor. Reprojected to EPSG:32632 | 
+| filtered_stations_9am.csv | stations_reprojected | Locations and station id for Trentino stations that have a rain sensor. Reprojected to EPSG:32632 |
+| smoothed_elevation.tif | data_dir  | 30m DEM smoothed as per method in Crespi | 
+| boundary_reprojected.shp | region_boundary_reprojected | Boundary of province, downloaded from trentino data portal. Reprojected to EPSG:32632 |
+| boundary_reprojected.shp | region_boundary_reprojected | Boundary of region | 
+
+
+Daily datasets for alto-adige are downloaded from `https://geoservices.buergernetz.bz.it` and `https://archivio.meteotrentino.it`
+
+The process is run in parallel, controlled by the `-n_jobs` argument, defaulting to 4. Each process uses ~2 GB of RAM and 100% of the CPU it is assigned to. To download the observations + produce their outputs for an entire year takes about 10 minutes.
+
+Other scripts in this repo are for running + visualising comparisons with Crespi's results to make sure we get similar results.
+
+Finally, in order to save space and speed up the script, if a day was completely dry then no output gets written.
+
+## RuntimeWarning: invalid value encountered in divide
+RuntimeWarning: invalid value encountered in divide
+  total_weights > EPSILON, (weights.T @ station_anomalies) / total_weights, np.nan
+
+This warning happens at runtime if there are only 1 or 2 stations with observed rainfall. It can be safely ignored, the interpolated results still match the observed values well in these cases.
+
+## Methodology of Crespi
+
+This script is based on this article: https://essd.copernicus.org/articles/13/2801/2021/essd-13-2801-2021.pdf which is available for free.
+
+A very brief summary of this paper is that rainfall for a particular day is calculated based on several factors:
+
+```sh
+rain on day x (mm) = function(climatology, altitude, station observation for day)
 ```
 
-then after file download call
-DELETE /api/requests/{request_id}
+This follows a standard meterological framework called PRISM. 
+The advantages of this approach are:
 
-... Maybe check the list of requests and loop through them to bin off all of em in case of script death.
+1. The results are more realistic considering elevation; much better than a simple linear interpolation would achieve.
+2. Local rain shadows, lake effects are (supposedly) accounted for using climatology. Spiky station data are smoothed out.
+3. Results in high resolution from meteorological point of view (250m) over traditional approaches (usually 2.5km).
 
-Could also check that `/api/usage` doesn't exceed maximum.
+The disadvantages are that it:
+1. Legitimately spiky results get smoothed out.
+2. Performs poorly in high rainfall events (see paper for more detail). Legitamate changes in climate due to global warming are smoothed out.
+3. Requires a large, consistent record of historical data, including data from regions outside of the study area.
+
+Bear in mind that all rain datasets have two time period formats; a historical form that runs from 9am of day 1 to 9am of day 2, and another which runs from UTC midnight day 1 to UTC midnight day 2. For the Crespi comparison and the average climatology calculation, we use the 9am time convention, whereas for the daily interpolation we use the midnight-midnight convention. This means that we mix conventions; this should be ok given that we consider climatology over several decades when calculting daily anomalies.
