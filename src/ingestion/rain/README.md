@@ -28,6 +28,12 @@ Other scripts in this repo are for running + visualising comparisons with Crespi
 
 Finally, in order to save space and speed up the script, if a day was completely dry then no output gets written.
 
+## RuntimeWarning: invalid value encountered in divide
+RuntimeWarning: invalid value encountered in divide
+  total_weights > EPSILON, (weights.T @ station_anomalies) / total_weights, np.nan
+
+This warning happens at runtime if there are only 1 or 2 stations with observed rainfall. It can be safely ignored, the interpolated results still match the observed values well in these cases.
+
 ## Methodology of Crespi
 
 This script is based on this article: https://essd.copernicus.org/articles/13/2801/2021/essd-13-2801-2021.pdf which is available for free.
