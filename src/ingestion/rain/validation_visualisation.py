@@ -95,7 +95,6 @@ for i, fleming_dataset in enumerate(all_fleming_files):
 
         current_max_predicted = max(current_max_predicted, merged["predicted"].max())
 
-        # TODO: Also check 0 predictions
         plt.scatter(
             merged["precipitation"],
             merged["predicted"],

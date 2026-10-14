@@ -23,27 +23,29 @@ from read_observation_data import read_observation_data
 from read_station_data import read_station_data
 from setup_logging import setup_logging
 
-N_JOBS = 4
 
-logger = setup_logging()
-
-if is_debugging():
-    # There are some weird C library shenanigans that cause the debug session to crash when debugging in vscode debugger
-    logger.info("Debugging detected, switching to single threading mode")
-    N_JOBS = 1
-
-
-if __name__ == "__main__":
+def main():
+    logger = setup_logging()
     ap = argparse.ArgumentParser()
 
-    ap.add_argument("--data-dir", required=True, help="Cartella per i file di dati")
+    ap.add_argument(
+        "--data-dir",
+        required=True,
+        help="Folder containing observation data, station data and DEM",
+    )
     ap.add_argument(
         "--date-from",
-        help="Date range to, dd/mm/yyyy format. Defaults to yesterday's date in Italy",
+        help="Date range from, dd/mm/yyyy format. Defaults to yesterday's date in Italy",
     )
     ap.add_argument(
         "--date-to",
         help="Date range to, dd/mm/yyyy format. Defaults to yesterday's date in Italy",
+    )
+    ap.add_argument(
+        "--n-jobs",
+        type=int,
+        default=4,
+        help="Number of parallel jobs used to generate outputs",
     )
 
     debug_group = ap.add_argument_group("debug", "debug options")
@@ -59,7 +61,7 @@ if __name__ == "__main__":
     if (args.date_from is None and args.date_to is not None) or (
         args.date_from is not None and args.date_to is None
     ):
-        raise AssertionError("Invalid date range")
+        raise ValueError("Invalid date range")
 
     if args.date_from is None and args.date_to is None:
         # No point considering today as data won't be complete,
@@ -75,9 +77,12 @@ if __name__ == "__main__":
         date_to = date_to.tz_localize(TIME_ZONE)
 
     if date_to < date_from:
-        raise AssertionError(f"{date_from} must be before {date_to}")
+        raise ValueError(f"{date_from} must be before {date_to}")
+
     time_delta = date_to - date_from
-    logger.info(f"Considering {time_delta.days} days between {date_from:%d/%m/%Y} to {date_to:%d/%m/%Y}")
+    logger.info(
+        f"Considering {time_delta.days + 1} days between {date_from:%d/%m/%Y} and {date_to:%d/%m/%Y}"
+    )
     run_context = RunContext(data_dir)
     run_context.setup()
 
@@ -102,7 +107,14 @@ if __name__ == "__main__":
     date_from = date_from.tz_localize(None).normalize()
     unique_dates = pd.date_range(date_from, date_to, freq="D")
 
-    Parallel(n_jobs=N_JOBS, prefer=THREADING_PREFERENCE)(
+    n_jobs = args.n_jobs
+
+    if is_debugging():
+        # There are some weird C library shenanigans that cause the debug session to crash when debugging in vscode debugger
+        logger.info("Debugging detected, switching to single threading mode")
+        n_jobs = 1
+
+    Parallel(n_jobs=n_jobs, prefer=THREADING_PREFERENCE)(
         delayed(interpolate_single_day_worker)(
             run_context=run_context,
             date1=date,
@@ -115,6 +127,7 @@ if __name__ == "__main__":
         for date in unique_dates
     )
 
+    # Output geojson of observations for visual debugging and verification
     if args.geojson:
         for date in unique_dates:
             date_str = date.strftime(run_context.output_file_time_format)
@@ -127,3 +140,7 @@ if __name__ == "__main__":
             build_daily_observations_geojson(
                 output_path, daily_observations, stations_df
             )
+
+
+if __name__ == "__main__":
+    main()

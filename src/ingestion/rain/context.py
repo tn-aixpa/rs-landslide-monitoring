@@ -16,7 +16,7 @@ class RunContext:
         # Include data in this range during calculation of climatology
         # These are both _inclusive_
         # Not many station observations before 1985
-        self.reference_start = parse_datetime("01/01/1985")  
+        self.reference_start = parse_datetime("01/01/1985")
         self.reference_end = parse_datetime("31/12/2025")  # bolzano values stop here
 
         # Include data in this range during daily interpolation calculation
@@ -32,9 +32,7 @@ class RunContext:
             data_dir / "stations_reprojected" / "filtered_stations_9am.csv"
         )
         self.historical_trentino_observations_path = (
-            data_dir
-            / "historical_rainfall_observations"
-            / "trentino_observations.csv"
+            data_dir / "historical_rainfall_observations" / "trentino_observations.csv"
         )
         # We check if this exists before reading. Not compulsary.
         self.historical_austria_observations_path = (
@@ -53,7 +51,11 @@ class RunContext:
 
         self.crespi_data_folder = data_dir / "crespi_data"
 
-        self.bolzano_daily_stations_path = data_dir / 'stations_reprojected' / "daily_stations_alto_adige_filtered_reprojected.csv"
+        self.bolzano_daily_stations_path = (
+            data_dir
+            / "stations_reprojected"
+            / "daily_stations_alto_adige_filtered_reprojected.csv"
+        )
 
     def apply_mask_to_np_array(self, np_array, transform):
         """
@@ -75,7 +77,9 @@ class RunContext:
         Raises:
             ValueError: _description_
         """
-        self.historical_observations_files = [self.historical_trentino_observations_path]
+        self.historical_observations_files = [
+            self.historical_trentino_observations_path
+        ]
         if province is None:
             boundary_dataset = (
                 self.data_dir
@@ -94,6 +98,8 @@ class RunContext:
             raise ValueError(f"Province {province} was not a recognised option")
 
         if self.historical_austria_observations_path.exists():
-            self.historical_observations_files.append(self.historical_austria_observations_path)
+            self.historical_observations_files.append(
+                self.historical_austria_observations_path
+            )
 
         self.boundary_polygon_shapes = read_boundary_dataset(boundary_dataset)

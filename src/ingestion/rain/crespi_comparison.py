@@ -15,10 +15,6 @@ This will use all CPUs available through joblib to parallelize the process.
 
 Se non c'e' piove per un giorno in particolare, non produciamo output per quell giorno (100% mask)
 
-TODO list:
-- Argument help to italian
-- Rework `grid` variable
-
 """
 
 import argparse
