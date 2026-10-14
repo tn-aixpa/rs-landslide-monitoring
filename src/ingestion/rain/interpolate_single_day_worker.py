@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
 import rasterio
+from scipy.optimize import minimize
+
 from calculate_station_loo_sse import calculate_station_loo_sse
 from constants import EPSILON
 from context import RunContext
-from scipy.optimize import minimize
 from setup_logging import setup_logging
 
 

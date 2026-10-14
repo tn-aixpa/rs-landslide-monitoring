@@ -8,6 +8,7 @@ import csv
 from pathlib import Path
 
 import pandas as pd
+
 from build_storico_trentino_session import build_storico_trentino_session
 from parse_storico_trentino_html import parse_storico_trentino_html
 from setup_logging import setup_logging

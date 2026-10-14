@@ -7,6 +7,7 @@ from logging import Logger
 
 import pandas as pd
 import requests as r
+
 from build_storico_trentino_session import build_resilient_session
 from context import RunContext
 from parse_datetime import parse_datetime
@@ -86,8 +87,11 @@ def _download_bolzano_date_range(
         "VALUE",
         historical_meteorological_format=historical_meterological_format,
     )
-    # TODO: bug when multiple days?
-    result = result[:1]  # remove the day with 0 observations
+
+    result = result[result["DATE"] >= date_from]
+    result = result[result["DATE"] < date_to]
+
+    # result = result[:1]  # remove the day with 0 observations
     result["station_id"] = station_id
     result["qual"] = 1
     # Match column names from Trentino
@@ -96,7 +100,7 @@ def _download_bolzano_date_range(
 
 
 def _download_trentino_archive(
-    logger: Logger, session:r.Session, date_from: pd.Timestamp, date_to: pd.Timestamp
+    logger: Logger, session: r.Session, date_from: pd.Timestamp, date_to: pd.Timestamp
 ):
     """
     Downloads data in parquet format. Gets updated daily
@@ -141,7 +145,7 @@ def _download_trentino_archive(
         # Make days line up
         df["time"] = df["time"].dt.tz_convert("Europe/Rome")
         df = df[df["time"] >= date_from]
-        df = df[df["time"] < date_to + pd.Timedelta(hours=24)]
+        df = df[df["time"] < date_to + pd.Timedelta(days=1)]
         df_list.append(df)
 
     concatted: pd.DataFrame = pd.concat(df_list)
@@ -178,7 +182,9 @@ def time_range_download(
 
     list_of_dfs = []
     session = build_resilient_session()
-    trento_df = pd.DataFrame(_download_trentino_archive(logger, session, date_from, date_to))
+    trento_df = pd.DataFrame(
+        _download_trentino_archive(logger, session, date_from, date_to)
+    )
     list_of_dfs.append(trento_df)
     # Uses special list
     bolzano_stations = pd.read_csv(context.bolzano_daily_stations_path)
