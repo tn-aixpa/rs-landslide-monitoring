@@ -24,10 +24,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import rasterio
-from joblib import Parallel, delayed
-from scipy.optimize import minimize
-from scipy.spatial import cKDTree
-
 from build_daily_observations_geojson import (
     build_daily_observations_geojson,
 )
@@ -37,10 +33,13 @@ from context import RunContext
 from delete_all_from_folder import delete_all_from_folder
 from interpolate_single_day_worker import interpolate_single_day_worker
 from is_debugging import is_debugging
+from joblib import Parallel, delayed
 from load_dem import load_dem
 from parse_datetime import parse_datetime
 from read_observation_data import read_observation_data
 from read_station_data import read_station_data
+from scipy.optimize import minimize
+from scipy.spatial import cKDTree
 from setup_logging import setup_logging
 
 logger = setup_logging()

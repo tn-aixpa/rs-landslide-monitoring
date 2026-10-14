@@ -7,8 +7,8 @@ from logging import Logger
 
 import pandas as pd
 import requests as r
-
 from build_storico_trentino_session import build_resilient_session
+from constants import TIME_ZONE
 from context import RunContext
 from parse_datetime import parse_datetime
 
@@ -87,11 +87,10 @@ def _download_bolzano_date_range(
         "VALUE",
         historical_meteorological_format=historical_meterological_format,
     )
-
-    result = result[result["DATE"] >= date_from]
-    result = result[result["DATE"] < date_to]
-
-    # result = result[:1]  # remove the day with 0 observations
+    result["temp_date"] = result["DATE"].dt.tz_localize(TIME_ZONE)
+    result = result[result["temp_date"] >= date_from]
+    result = result[result["temp_date"] < date_to]
+    result = result.drop(["temp_date"], axis=1)
     result["station_id"] = station_id
     result["qual"] = 1
     # Match column names from Trentino

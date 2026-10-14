@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pandas as pd
 import requests as r
-
 from setup_logging import setup_logging
 
 logger = setup_logging()

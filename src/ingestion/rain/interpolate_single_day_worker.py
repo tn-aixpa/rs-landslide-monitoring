@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
 import rasterio
-from scipy.optimize import minimize
-
 from calculate_station_loo_sse import calculate_station_loo_sse
 from constants import EPSILON
 from context import RunContext
+from scipy.optimize import minimize
 from setup_logging import setup_logging
 
 
@@ -179,7 +178,7 @@ def interpolate_single_day_worker(
         values=precipitation_valid_cells, grid=grid
     )
     date_str = date.strftime(run_context.output_file_time_format)
-    output_path = run_context.output_directory / f"fleming_{date_str}.tif"
+    output_path = run_context.output_directory / f"daily_output_{date_str}.tif"
 
     if np.all(np.isnan(precipitation_raster) | (precipitation_raster == 0)):
         logger.info(

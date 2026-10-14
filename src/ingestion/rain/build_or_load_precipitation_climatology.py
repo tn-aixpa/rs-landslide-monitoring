@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 import rasterio
-
 from constants import EPSILON
 from context import RunContext
 from delete_all_from_folder import delete_all_from_folder

@@ -1,9 +1,8 @@
 from pathlib import Path
 
 import numpy as np
-from rasterio.features import geometry_mask
-
 from parse_datetime import parse_datetime
+from rasterio.features import geometry_mask
 from read_boundary_dataset import read_boundary_dataset
 
 
@@ -30,7 +29,7 @@ class RunContext:
         self.smoothed_dem_path = data_dir / "smoothed_elevation.tif"
 
         self.historical_stations_path = (
-            data_dir / "stations_reprojected" / "filtered_stations_9am.csv"
+            data_dir / "stations_reprojected" / "trentino_stations.csv"
         )
         self.historical_trentino_observations_path = (
             data_dir / "historical_rainfall_observations" / "trentino_observations.csv"
@@ -53,9 +52,7 @@ class RunContext:
         self.crespi_data_folder = data_dir / "crespi_data"
 
         self.bolzano_daily_stations_path = (
-            data_dir
-            / "stations_reprojected"
-            / "daily_stations_alto_adige_filtered_reprojected.csv"
+            data_dir / "stations_reprojected" / "alto_adige_stations.csv"
         )
 
     def apply_mask_to_np_array(self, np_array, transform):

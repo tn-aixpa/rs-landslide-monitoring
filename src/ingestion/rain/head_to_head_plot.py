@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio
-
 from crespi_comparison import RunContext
 from parse_datetime import parse_datetime
 from read_station_data import read_station_data
@@ -44,7 +43,7 @@ for crespi_dataset in crespi_paths:
     crespi_stem = Path(crespi_dataset).stem
     date_str = crespi_stem[7:].replace("_", "/")
     time_stamp = parse_datetime(date_str)
-    fleming_file_path = run_context.output_directory / f"fleming_{crespi_date}.tif"
+    fleming_file_path = run_context.output_directory / f"daily_output_{crespi_date}.tif"
 
     fleming_series = []
     if not fleming_file_path.exists():

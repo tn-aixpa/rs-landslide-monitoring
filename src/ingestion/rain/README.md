@@ -20,12 +20,17 @@ The following datasets are required and placed in the project data directory spe
 | boundary_reprojected.shp | region_boundary_reprojected | Boundary of region | 
 
 
-Daily datasets for alto-adige are downloaded from `https://geoservices.buergernetz.bz.it` and 
+Daily datasets for alto-adige are downloaded from `https://geoservices.buergernetz.bz.it` and `https://archivio.meteotrentino.it`
 
+The process is run in parallel, controlled by the `-n_jobs` argument, defaulting to 4. Each process uses ~2 GB of RAM and 100% of the CPU it is assigned to. To download the observations + produce their outputs for an entire year takes about 10 minutes.
+
+Other scripts in this repo are for running + visualising comparisons with Crespi's results to make sure we get similar results.
+
+Finally, in order to save space and speed up the script, if a day was completely dry then no output gets written.
 
 ## Methodology of Crespi
 
-This script is based on this article: https://essd.copernicus.org/articles/13/2801/2021/essd-13-2801-2021.pdf
+This script is based on this article: https://essd.copernicus.org/articles/13/2801/2021/essd-13-2801-2021.pdf which is available for free.
 
 A very brief summary of this paper is that rainfall for a particular day is calculated based on several factors:
 
@@ -44,10 +49,5 @@ The disadvantages are that it:
 1. Legitimately spiky results get smoothed out.
 2. Performs poorly in high rainfall events (see paper for more detail). Legitamate changes in climate due to global warming are smoothed out.
 3. Requires a large, consistent record of historical data, including data from regions outside of the study area.
-
-Lavoro in corso; questo progetto ha 3 stagine:
-1. Fare il confronto contro nostro codice e quella di Crespi et al. (Fatto, vedi `crespi_comparison.py` per documentazione e informazione sull'utilizzo)
-2. Produrre set di dati per il training del modello (non fatto)
-3. Scaricare set di dati del tempo giornaliero per previsione (non fatto)
 
 Bear in mind that all rain datasets have two time period formats; a historical form that runs from 9am of day 1 to 9am of day 2, and another which runs from UTC midnight day 1 to UTC midnight day 2. For the Crespi comparison and the average climatology calculation, we use the 9am time convention, whereas for the daily interpolation we use the midnight-midnight convention. This means that we mix conventions; this should be ok given that we consider climatology over several decades when calculting daily anomalies.

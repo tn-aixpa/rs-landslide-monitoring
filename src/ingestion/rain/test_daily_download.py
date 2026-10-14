@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+from constants import TIME_ZONE
 from daily_download import _download_bolzano_date_range
 from parse_datetime import parse_datetime
 
@@ -20,13 +21,13 @@ def test_basic_bolzano():
     # Mock the requests session object
     mock_session = MagicMock()
     mock_session.get.return_value = mock_response
-    date1 = parse_datetime("01/01/2022")
+    date1 = parse_datetime("01/01/2022").tz_localize(TIME_ZONE)
     df = _download_bolzano_date_range(logger, mock_session, "abc123", date1, date1)
 
     assert len(df) == 1  # Single row, cutting off date that is not relevant
     row = df.iloc[0]
     assert df.iloc[0]["precipitation"] == 30.0
-    assert row["date"] == date1
+    assert row["date"].tz_localize(TIME_ZONE) == date1
 
 
 def test_range_bolzano():
@@ -48,8 +49,8 @@ def test_range_bolzano():
     # Mock the requests session object
     mock_session = MagicMock()
     mock_session.get.return_value = mock_response
-    date1 = parse_datetime("02/01/2022")
-    date2 = parse_datetime("03/01/2022")
+    date1 = parse_datetime("02/01/2022").tz_localize(TIME_ZONE)
+    date2 = parse_datetime("03/01/2022").tz_localize(TIME_ZONE)
     df = _download_bolzano_date_range(logger, mock_session, "abc123", date1, date2)
 
     assert len(df) == 2  # 2 rows, one per day
