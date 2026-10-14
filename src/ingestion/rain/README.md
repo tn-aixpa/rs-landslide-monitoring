@@ -24,9 +24,11 @@ Daily datasets for alto-adige are downloaded from `https://geoservices.buergerne
 
 The process is run in parallel, controlled by the `-n_jobs` argument, defaulting to 4. Each process uses ~2 GB of RAM and 100% of the CPU it is assigned to. To download the observations + produce their outputs for an entire year takes about 10 minutes.
 
+In terms of storage space, each daily output is roughly 500Kb. In order to save space and speed up the script, if a day was completely dry then no output gets written. The output for the 1 year period from 13/10/2025 to 13/10/2026 for example is 126.4 MB.
+
 Other scripts in this repo are for running + visualising comparisons with Crespi's results to make sure we get similar results.
 
-Finally, in order to save space and speed up the script, if a day was completely dry then no output gets written.
+
 
 ## RuntimeWarning: invalid value encountered in divide
 RuntimeWarning: invalid value encountered in divide
