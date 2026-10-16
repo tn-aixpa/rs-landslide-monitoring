@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 from constants import TIME_ZONE
-from daily_download import _download_bolzano_date_range
+from daily_download import _download_bolzano_date_range, _download_trentino_archive
 from parse_datetime import parse_datetime
 
 
@@ -58,3 +58,31 @@ def test_range_bolzano():
     assert row1["precipitation"] == 10
     row2 = df.iloc[1]
     assert row2["precipitation"] == 60
+
+def test_range_trentino():
+    logger = MagicMock()
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    
+    with open("/home/jfleming/Documents/rs-landslide-monitoring/src/ingestion/rain/test_data_files/2026-04.parquet", 'rb') as f:
+        bytes = f.read()
+    
+    mock_response.content = bytes
+    mock_response.raise_for_status.return_value = None
+
+    mock_session = MagicMock()
+    mock_session.get.return_value = mock_response
+    
+    # response = session.get(url)
+    # response.raise_for_status()
+    # df = pd.read_parquet(io.BytesIO(response.content))
+    date1 = parse_datetime("10/04/2026").tz_localize(TIME_ZONE)
+    date2 = parse_datetime("09/04/2026").tz_localize(TIME_ZONE)
+
+    df = _download_trentino_archive(logger, mock_session, date2, date1)
+    print(df)
+
+
+def test_range_spanning_month_trentino():
+    pass
