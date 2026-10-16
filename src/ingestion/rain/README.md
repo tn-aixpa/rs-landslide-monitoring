@@ -5,7 +5,7 @@
 There are two main scripts for this project.
 
 ```sh
-python daily_download.py --data-dir=/project/data  --date-from=29/06/2026 --date-to=10/07/2026 --output-file=/tmp/rain_29_06_2026_to_10_07_2026.csv
+python daily_observations_download.py --data-dir=/project/data  --date-from=29/06/2026 --date-to=10/07/2026 --output-file=/tmp/rain_29_06_2026_to_10_07_2026.csv
 ```
 
 The second is `daily_rain_interpolation.py` which builds .tif files of rainfall over the province, one .tif per day over the specified range.

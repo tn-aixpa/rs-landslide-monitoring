@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 from constants import TIME_ZONE
-from daily_download import _download_bolzano_date_range, _download_trentino_archive
+from ingestion.rain.daily_observations_download import _download_bolzano_date_range, _download_trentino_archive
 from parse_datetime import parse_datetime
 
 

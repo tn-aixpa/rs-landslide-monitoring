@@ -13,7 +13,7 @@ from build_or_load_precipitation_climatology import (
 from calculate_monthly_normals import calculate_monthly_normals
 from constants import THREADING_PREFERENCE, TIME_ZONE
 from context import RunContext
-from daily_download import time_range_download
+from ingestion.rain.daily_observations_download import time_range_download
 from interpolate_single_day_worker import interpolate_single_day_worker
 from is_debugging import is_debugging
 from joblib import Parallel, delayed
