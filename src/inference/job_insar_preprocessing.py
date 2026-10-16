@@ -704,7 +704,7 @@ def main(json_input: dict) -> None:
         date_ascending1 = list_dates_ascending[sorted_indices_ascending[i - 1]]
         date_ascending2 = list_dates_ascending[sorted_indices_ascending[i]]
 
-        if i + 1 < n_images:
+        if i + 1 < n_descending:
             if date_descending1 == date_descending2 or date_descending2 == list_dates_descending[sorted_indices_descending[i + 1]]:
                 logger.warning(
                     "Le immagini discendenti %s e %s hanno la stessa data o non appartengono "
@@ -713,6 +713,15 @@ def main(json_input: dict) -> None:
                 )
                 date_descending2 = list_dates_descending[sorted_indices_descending[i + 1]]
                 filename_descending2 = list_files_descending[sorted_indices_descending[i + 1]]
+        else:
+            if date_descending1 == date_descending2:
+                logger.warning(
+                    "Le immagini discendenti %s e %s hanno la stessa data e non ci sono ulteriori "
+                    "immagini da analizzare. Esco dal ciclo.", filename_descending1, filename_descending2,
+                )
+                break
+
+        if i + 1 < n_ascending:
             if date_ascending1 == date_ascending2 or date_ascending2 == list_dates_ascending[sorted_indices_ascending[i + 1]]:
                 logger.warning(
                     "Le immagini ascendenti %s e %s hanno la stessa data o non appartengono "
@@ -722,12 +731,6 @@ def main(json_input: dict) -> None:
                 date_ascending2 = list_dates_ascending[sorted_indices_ascending[i + 1]]
                 filename_ascending2 = list_files_ascending[sorted_indices_ascending[i + 1]]
         else:
-            if date_descending1 == date_descending2:
-                logger.warning(
-                    "Le immagini discendenti %s e %s hanno la stessa data e non ci sono ulteriori "
-                    "immagini da analizzare. Esco dal ciclo.", filename_descending1, filename_descending2,
-                )
-                break
             if date_ascending1 == date_ascending2:
                 logger.warning(
                     "Le immagini ascendenti %s e %s hanno la stessa data e non ci sono ulteriori "
