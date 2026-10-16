@@ -1,9 +1,10 @@
 """
 Exports time_range_download
 """
-
+import argparse
 import io
 from logging import Logger
+from pathlib import Path
 
 import pandas as pd
 import requests as r
@@ -11,6 +12,7 @@ from build_storico_trentino_session import build_resilient_session
 from constants import TIME_ZONE
 from context import RunContext
 from parse_datetime import parse_datetime
+from setup_logging import setup_logging
 
 
 def _group_by_day(
@@ -198,3 +200,57 @@ def time_range_download(
         list_of_dfs.append(result)
 
     return pd.concat(list_of_dfs, ignore_index=True)
+
+
+if __name__ == '__main__':
+    logger = setup_logging()
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--data-dir",
+        required=True,
+        help="Folder containing observation data, station data and DEM",
+    )
+    ap.add_argument(
+        "--date-from",
+        help="Date range from, dd/mm/yyyy format. Defaults to yesterday's date in Italy",
+    )
+    ap.add_argument(
+        "--date-to",
+        help="Date range to, dd/mm/yyyy format. Defaults to yesterday's date in Italy",
+    )
+    ap.add_argument("--output-file", required=True, help="Output csv file path")
+
+    args = ap.parse_args()
+    data_dir = Path(args.data_dir)
+    output_file_path = Path(args.output_file)
+
+    if (args.date_from is None and args.date_to is not None) or (
+        args.date_from is not None and args.date_to is None
+    ):
+        raise ValueError("Invalid date range")
+
+    if args.date_from is None and args.date_to is None:
+        # No point considering today as data won't be complete,
+        today = pd.Timestamp.now(tz=TIME_ZONE).normalize()
+        yesterday = today - pd.Timedelta(days=1)
+        date_from = yesterday
+        date_to = yesterday
+    else:
+        date_from = parse_datetime(args.date_from)
+        date_from = date_from.tz_localize(TIME_ZONE)
+
+        date_to = parse_datetime(args.date_to)
+        date_to = date_to.tz_localize(TIME_ZONE)
+
+    if date_to < date_from:
+        raise ValueError(f"{date_from} must be before {date_to}")
+
+    time_delta = date_to - date_from
+    logger.info(
+        f"Considering {time_delta.days + 1} days between {date_from:%d/%m/%Y} and {date_to:%d/%m/%Y}"
+    )
+    run_context = RunContext(data_dir)
+    run_context.setup()
+
+    daily_observations_df = time_range_download(logger, run_context, date_from, date_to)
+    daily_observations_df.to_csv(output_file_path, index=False)

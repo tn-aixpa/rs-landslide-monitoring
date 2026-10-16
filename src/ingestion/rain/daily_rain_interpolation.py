@@ -41,6 +41,9 @@ def main():
         "--date-to",
         help="Date range to, dd/mm/yyyy format. Defaults to yesterday's date in Italy",
     )
+
+    ap.add_argument("--observations-file", help="Output of ")
+
     ap.add_argument(
         "--n-jobs",
         type=int,

@@ -42,6 +42,9 @@ class RunContext:
             data_dir / "historical_rainfall_observations" / "bolzano_observations.csv"
         )
         self.historical_observations_files = None
+
+        self.daily_rainfall_observations_dir = data_dir / "daily_rainfall_observations"
+
         self.output_directory = data_dir / "output" / "interpolated_daily_output"
 
         self.write_climatologies = True
