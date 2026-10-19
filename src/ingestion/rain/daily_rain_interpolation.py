@@ -4,9 +4,10 @@ Used to create daily interpolated data which can then be aggregated.
 
 import argparse
 from pathlib import Path
-import rasterio
+
 import numpy as np
 import pandas as pd
+import rasterio
 from build_daily_observations_geojson import build_daily_observations_geojson
 from build_or_load_precipitation_climatology import (
     build_or_load_precipitation_climatology,
@@ -33,8 +34,8 @@ def main():
         required=True,
         help="Folder containing observation data, station data and DEM",
     )
-    ap.add_argument("--observations-file", required=True, help="CSV output file of daily_observations_download.py")
-
+    ap.add_argument("--observations-file", required=True, help="Full path of CSV output file of daily_observations_download.py")
+    ap.add_argument("--aggregate-output-file", required=True, help="Full output file path for summed aggregate geotiff")
     ap.add_argument(
         "--n-jobs",
         type=int,
@@ -43,6 +44,7 @@ def main():
     )
 
     debug_group = ap.add_argument_group("debug", "debug options")
+    debug_group.add_argument("--daily-output", action="store_true", help="Output daily interpolated geotiffs")
     debug_group.add_argument(
         "--geojson",
         action="store_true",
@@ -100,7 +102,7 @@ def main():
             monthly_normals=monthly_normals,
             monthly_climatology=monthly_climatology,
             grid=grid,
-            write_output_file=True
+            write_output_file=args.daily_output == True
         )
         for date in unique_dates
     )
@@ -121,8 +123,8 @@ def main():
     profile.update(
         dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate"
     )
-
-    with rasterio.open(run_context.output_directory / "summed_aggregate.tif", "w", **profile) as dst:
+    
+    with rasterio.open(args.aggregate_output_file, "w", **profile) as dst:
         dst.write(masked_precipitation_raster.astype(np.float32), 1)
 
     # Output geojson of observations for visual debugging and verification
