@@ -24,7 +24,6 @@ from read_station_data import read_station_data
 from setup_logging import setup_logging
 
 
-
 def main():
     logger = setup_logging()
     ap = argparse.ArgumentParser()
@@ -105,18 +104,26 @@ def main():
         )
         for date in unique_dates
     )
-    # Filter out dry days
+    # Filter out dry days, fill in occasional nodata regions
     filtered_results = [result for result in results if result is not None]
-    final_sum = np.ma.sum(filtered_results[:2], axis=0)
     
-    # masked_final_sum_arr = np.ma.masked_equal(final_sum, 0)
+    final_sum = np.nansum(filtered_results, axis=0)
+    '''
+    Some interpolations with very small amounts of rainfall can fail to solve,
+    resulting in small regions of nodata within the valid geometry area.
+    Treat them as 0, then mask the raster by border geometry again.
+    '''
+    masked_precipitation_raster = run_context.apply_mask_to_np_array(
+        final_sum, grid["profile"]["transform"]
+    )
+
     profile = grid["profile"].copy()
     profile.update(
         dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate"
     )
-    
-    with rasterio.open(run_context.daily_rainfall_observations_dir / "summed_aggregate.tif", "w", **profile) as dst:
-        dst.write(final_sum.astype(np.float32), 1)
+
+    with rasterio.open(run_context.output_directory / "summed_aggregate.tif", "w", **profile) as dst:
+        dst.write(masked_precipitation_raster.astype(np.float32), 1)
 
     # Output geojson of observations for visual debugging and verification
     if args.geojson:
