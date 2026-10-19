@@ -137,7 +137,8 @@ def interpolate_single_day_worker(
     monthly_normals: pd.DataFrame,
     monthly_climatology: np.ndarray,
     grid: dict,
-):
+    write_output_file=True
+) -> np.ma.MaskedArray | None:
     logger = (
         setup_logging()
     )  # Do this inside worker function too as it sets up its own context
@@ -184,16 +185,21 @@ def interpolate_single_day_worker(
         logger.info(
             f"Skipping output for {date_str} as day evaluated to dry across grid"
         )
+        return None
     else:
         masked_precipitation_raster = run_context.apply_mask_to_np_array(
             precipitation_raster, grid["profile"]["transform"]
         )
 
-        profile = grid["profile"].copy()
-        profile.update(
-            dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate"
-        )
-        with rasterio.open(output_path, "w", **profile) as dst:
-            dst.write(masked_precipitation_raster.astype(np.float32), 1)
+        if write_output_file:
+            profile = grid["profile"].copy()
+            profile.update(
+                dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate"
+            )
+            with rasterio.open(output_path, "w", **profile) as dst:
+                dst.write(masked_precipitation_raster.astype(np.float32), 1)
 
-        logger.info(f"Saved: {output_path}")
+            logger.info(f"Completed calculations for {date_str}, saved to: {output_path}")
+        else:
+            logger.info(f"Completed calculations for: {date_str}")
+        return masked_precipitation_raster

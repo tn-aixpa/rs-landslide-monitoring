@@ -4,16 +4,16 @@ Used to create daily interpolated data which can then be aggregated.
 
 import argparse
 from pathlib import Path
-
+import rasterio
+import numpy as np
 import pandas as pd
 from build_daily_observations_geojson import build_daily_observations_geojson
 from build_or_load_precipitation_climatology import (
     build_or_load_precipitation_climatology,
 )
 from calculate_monthly_normals import calculate_monthly_normals
-from constants import THREADING_PREFERENCE, TIME_ZONE
+from constants import THREADING_PREFERENCE
 from context import RunContext
-from ingestion.rain.daily_observations_download import time_range_download
 from interpolate_single_day_worker import interpolate_single_day_worker
 from is_debugging import is_debugging
 from joblib import Parallel, delayed
@@ -22,6 +22,7 @@ from parse_datetime import parse_datetime
 from read_observation_data import read_observation_data
 from read_station_data import read_station_data
 from setup_logging import setup_logging
+
 
 
 def main():
@@ -33,16 +34,7 @@ def main():
         required=True,
         help="Folder containing observation data, station data and DEM",
     )
-    ap.add_argument(
-        "--date-from",
-        help="Date range from, dd/mm/yyyy format. Defaults to yesterday's date in Italy",
-    )
-    ap.add_argument(
-        "--date-to",
-        help="Date range to, dd/mm/yyyy format. Defaults to yesterday's date in Italy",
-    )
-
-    ap.add_argument("--observations-file", help="Output of ")
+    ap.add_argument("--observations-file", required=True, help="CSV output file of daily_observations_download.py")
 
     ap.add_argument(
         "--n-jobs",
@@ -61,35 +53,18 @@ def main():
     args = ap.parse_args()
     data_dir = Path(args.data_dir)
 
-    if (args.date_from is None and args.date_to is not None) or (
-        args.date_from is not None and args.date_to is None
-    ):
-        raise ValueError("Invalid date range")
-
-    if args.date_from is None and args.date_to is None:
-        # No point considering today as data won't be complete,
-        today = pd.Timestamp.now(tz=TIME_ZONE).normalize()
-        yesterday = today - pd.Timedelta(days=1)
-        date_from = yesterday
-        date_to = yesterday
-    else:
-        date_from = parse_datetime(args.date_from)
-        date_from = date_from.tz_localize(TIME_ZONE)
-
-        date_to = parse_datetime(args.date_to)
-        date_to = date_to.tz_localize(TIME_ZONE)
-
-    if date_to < date_from:
-        raise ValueError(f"{date_from} must be before {date_to}")
-
+    daily_observations_file = Path(args.observations_file)
+    daily_observations_df = pd.read_csv(daily_observations_file)
+    
+    daily_observations_df["date"] = parse_datetime(daily_observations_df["date"])
+    date_from = daily_observations_df["date"].min()
+    date_to = daily_observations_df["date"].max()
     time_delta = date_to - date_from
     logger.info(
         f"Considering {time_delta.days + 1} days between {date_from:%d/%m/%Y} and {date_to:%d/%m/%Y}"
     )
     run_context = RunContext(data_dir)
     run_context.setup()
-
-    daily_observations_df = time_range_download(logger, run_context, date_from, date_to)
 
     # Historical observations are used to calculate daily anomaly. Meterological concept used for this model.
     # Unfortunately this means mixing time formats; unlikely to result in inaccuracy.
@@ -117,7 +92,7 @@ def main():
         logger.info("Debugging detected, switching to single threading mode")
         n_jobs = 1
 
-    Parallel(n_jobs=n_jobs, prefer=THREADING_PREFERENCE)(
+    results = Parallel(n_jobs=n_jobs, prefer=THREADING_PREFERENCE)(
         delayed(interpolate_single_day_worker)(
             run_context=run_context,
             date1=date,
@@ -126,9 +101,22 @@ def main():
             monthly_normals=monthly_normals,
             monthly_climatology=monthly_climatology,
             grid=grid,
+            write_output_file=True
         )
         for date in unique_dates
     )
+    # Filter out dry days
+    filtered_results = [result for result in results if result is not None]
+    final_sum = np.ma.sum(filtered_results[:2], axis=0)
+    
+    # masked_final_sum_arr = np.ma.masked_equal(final_sum, 0)
+    profile = grid["profile"].copy()
+    profile.update(
+        dtype=rasterio.float32, count=1, nodata=np.nan, compress="deflate"
+    )
+    
+    with rasterio.open(run_context.daily_rainfall_observations_dir / "summed_aggregate.tif", "w", **profile) as dst:
+        dst.write(final_sum.astype(np.float32), 1)
 
     # Output geojson of observations for visual debugging and verification
     if args.geojson:
