@@ -21,8 +21,9 @@ def parse_datetime(
     else:
         to_test = str_or_series
 
+    # TODO: dayfirst parameter is redundant here
     if re.search(r"\d{2}:\d{2}:\d{2} \d{2}/\d{2}/\d{4}", to_test):
-        temp = pd.to_datetime(str_or_series, format="%H:%M:%S %d/%m/%Y", dayfirst=True)
+        temp = pd.to_datetime(str_or_series, format="%H:%M:%S %d/%m/%Y", dayfirst=True) 
     elif re.search(r"\d{2}/\d{2}/\d{4}", to_test):
         temp = pd.to_datetime(str_or_series, format="%d/%m/%Y", dayfirst=True)
     elif re.search(r"\d{4}-\d{2}-\d{2}", to_test):
@@ -36,7 +37,7 @@ def parse_datetime(
     if isinstance(temp, pd.Series):
         temp = temp.dt.floor(
             "D"
-        )  # strip off timestamp which is useless and hurts brain
+        )  # strip off timestamp
     else:
         temp = temp.floor("D")
 
