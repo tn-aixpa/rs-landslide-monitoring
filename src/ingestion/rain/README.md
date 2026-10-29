@@ -20,10 +20,9 @@ The following datasets are required and placed in the project data directory spe
 | -------- | ------- | ------- | -------
 | trentino_observations.csv and bolzano_observations.csv  |  historical_rainfall_observations   |   Contains historical rainfall observations for anomaly and climatology creation | 
 | daily_stations_alto_adige_filtered_reprojected.csv | stations_reprojected | Locations and station id for alto adige stations that have a rain sensor. Reprojected to EPSG:32632 | 
-| filtered_stations_9am.csv | stations_reprojected | Locations and station id for Trentino stations that have a rain sensor. Reprojected to EPSG:32632 |
+| trentino_stations.csv and alto_adige_stations.csv | stations_reprojected | Locations and station id for Trentino alto-adige stations that have a rain sensor. Reprojected to EPSG:32632 |
 | smoothed_elevation.tif | data_dir  | 30m DEM smoothed as per method in Crespi | 
-| boundary_reprojected.shp | region_boundary_reprojected | Boundary of province, downloaded from trentino data portal. Reprojected to EPSG:32632 |
-| boundary_reprojected.shp | region_boundary_reprojected | Boundary of region | 
+| boundary_reprojected.shp | region_boundary_reprojected | Boundary of region, downloaded from trentino data portal. Reprojected to EPSG:32632 |
 
 
 Daily datasets for alto-adige are downloaded from `https://geoservices.buergernetz.bz.it` and `https://archivio.meteotrentino.it`
