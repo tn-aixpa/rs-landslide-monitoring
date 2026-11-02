@@ -98,7 +98,7 @@ def _require(json_input: dict, key: str) -> str:
     return value
 
 
-def get_folders_last_months(base_path: str, n_months: int) -> list[str]:
+def get_folders_last_months(base_path: str, n_months: int, end_date=None):
     """
     Seleziona le cartelle degli ultimi n mesi rispetto alla cartella
     con la data più recente, basandosi sul formato YYYYMMDD_YYYYMMDD.
@@ -106,14 +106,18 @@ def get_folders_last_months(base_path: str, n_months: int) -> list[str]:
     Args:
         base_path: Percorso della directory contenente le cartelle
         n_months: Numero di mesi da considerare
+        end_date: Data finale per il processing delle feature. 
+                Da usare per un calcolo delle feature manuale. (Default=None)
 
     Returns:
         Lista ordinata delle cartelle degli ultimi n mesi
+        Nome della data più recente
     """
     pattern = re.compile(r'^\d{8}_\d{8}$')
     base = Path(base_path)
 
     valid_folders: list[tuple[str, datetime, datetime]] = []
+    folders = []
     for folder in base.iterdir():
         if not folder.is_dir():
             continue
@@ -128,12 +132,18 @@ def get_folders_last_months(base_path: str, n_months: int) -> list[str]:
             continue
 
         valid_folders.append((folder.name, date_start, date_end))
-
+        folders.append(folder.name)
+    
+    sorted_folders = sorted(folders)
+    
     if not valid_folders:
         logger.warning("Nessuna cartella nel formato YYYYMMDD_YYYYMMDD trovata in %s.", base_path)
         return []
 
-    most_recent_date = max(date_end for _, _, date_end in valid_folders)
+    if end_date is None:
+        most_recent_date = max(date_end for _, _, date_end in valid_folders)
+    else:
+        most_recent_date = max(date_end for _, _, date_end in valid_folders if date_end < end_date)
 
     month = most_recent_date.month - n_months
     year = most_recent_date.year
@@ -145,8 +155,18 @@ def get_folders_last_months(base_path: str, n_months: int) -> list[str]:
     logger.info("Data più recente trovata: %s", most_recent_date.strftime('%d/%m/%Y'))
     logger.info("Cutoff (%d mesi prima): %s", n_months, cutoff_date.strftime('%d/%m/%Y'))
 
-    selected = [name for name, _, date_end in valid_folders if date_end >= cutoff_date]
-    return sorted(selected)
+    if end_date is None:
+        selected = [name for name, _, date_end in valid_folders if date_end > cutoff_date]
+    else:
+        selected = [name for name, _, date_end in valid_folders if date_end > cutoff_date and date_end <= most_recent_date]
+
+    starting_folder = sorted(selected)[0]
+    ending_folder = sorted(selected)[-1]   
+
+    starting_index = sorted_folders.index(starting_folder)
+    ending_index = sorted_folders.index(ending_folder)
+    
+    return sorted(selected), starting_index, ending_index
 
 
 def _safe_trig_divide(numerator: np.ndarray, angle_deg: np.ndarray, func) -> np.ndarray:
@@ -377,6 +397,7 @@ def run(json_input: dict) -> None:
     preprocessed_artifact = _require(json_input, "preprocessedArtifactName")
     map_artifact = _require(json_input, "mapArtifactName")
     output_artifact_name = json_input.get("outputArtifactName") or CONFIG.default_output_artifact_name
+    end_date = json_input.get("endDate") or None
 
     if "PROJECT_NAME" not in os.environ:
         raise EnvironmentError("Variabile d'ambiente 'PROJECT_NAME' non impostata.")
@@ -445,12 +466,15 @@ def run(json_input: dict) -> None:
     list_theta_descending = theta_dict["descending"]
 
     logger.info("Calcolo degli spostamenti verticali ed est-ovest...")
-    list_filenames = get_folders_last_months(input_path, n_months=CONFIG.n_months)
+    list_filenames, starting_index, ending_index = get_folders_last_months(input_path, n_months=CONFIG.n_months, end_date=end_date)
     if not list_filenames:
         raise FeatureExtractionError(
             f"Nessuna cartella nel formato YYYYMMDD_YYYYMMDD trovata in {input_path} "
             f"negli ultimi {CONFIG.n_months} mesi."
         )
+
+    list_theta_ascending = list_theta_ascending[starting_index:ending_index+1]#[-len(list_filenames):]
+    list_theta_descending = list_theta_descending[starting_index:ending_index+1]#[-len(list_filenames):]
     if len(list_theta_ascending) < len(list_filenames) or len(list_theta_descending) < len(list_filenames):
         raise FeatureExtractionError(
             f"sensor_angles.json contiene {len(list_theta_ascending)} angoli ascending / "
@@ -458,8 +482,7 @@ def run(json_input: dict) -> None:
             f"{len(list_filenames)} coppie di immagini: gli angoli non sono sufficienti "
             "per garantire un allineamento corretto con le mappe."
         )
-    list_theta_ascending = list_theta_ascending[-len(list_filenames):]
-    list_theta_descending = list_theta_descending[-len(list_filenames):]
+    
     starting_date = list_filenames[0].split("_")[0]
     ending_date = list_filenames[-1].split("_")[1]
 
