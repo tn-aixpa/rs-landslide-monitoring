@@ -19,7 +19,7 @@ from typing import Optional, Sequence
 
 import numpy as np
 from osgeo import gdal
-import esa_snappy
+#import esa_snappy
 import snaphu
 from snapista import Operator, Graph
 
