@@ -143,7 +143,7 @@ def get_folders_last_months(base_path: str, n_months: int, end_date=None):
     if end_date is None:
         most_recent_date = max(date_end for _, _, date_end in valid_folders)
     else:
-        most_recent_date = max(date_end for _, _, date_end in valid_folders if date_end < datetime.strptime(end_date, '%Y%m%d'))
+        most_recent_date = max(date_end for _, _, date_end in valid_folders if date_end <= datetime.strptime(end_date, '%Y%m%d'))
 
     month = most_recent_date.month - n_months
     year = most_recent_date.year
@@ -231,19 +231,19 @@ def _write_geotiff(
 
 
 def _find_mosaic_file(folder: str, orientation_folder: str, folder_label: str, orientation: str) -> str:
-    """Trova l'unico file '*mosaic.tif' in orientation_folder, con un errore chiaro se manca."""
+    """Trova l'unico file '*coherence_displacement.tif' in orientation_folder, con un errore chiaro se manca."""
     if not os.path.isdir(orientation_folder):
         raise FeatureExtractionError(
             f"Cartella '{orientation}' mancante per '{folder_label}' (attesa in {orientation_folder})."
         )
-    candidates = [fi for fi in os.listdir(orientation_folder) if "mosaic.tif" in fi]
+    candidates = [fi for fi in os.listdir(orientation_folder) if "coherence_displacement.tif" in fi]
     if not candidates:
         raise FeatureExtractionError(
-            f"Nessun file '*mosaic.tif' trovato in {orientation_folder} (coppia '{folder_label}', {orientation})."
+            f"Nessun file '*coherence_displacement.tif' trovato in {orientation_folder} (coppia '{folder_label}', {orientation})."
         )
     if len(candidates) > 1:
         logger.warning(
-            "Trovati più file mosaic.tif in %s: uso '%s'.", orientation_folder, sorted(candidates)[0],
+            "Trovati più file coherence_displacement.tif in %s: uso '%s'.", orientation_folder, sorted(candidates)[0],
         )
     return sorted(candidates)[0]
 
@@ -276,7 +276,7 @@ def v_ew_displ(path: str, list_filenames: Sequence[str]):
     Raises
     ------
     FeatureExtractionError
-        Se manca il file mosaic.tif atteso per una coppia, o se un raster non ha
+        Se manca il file coherence_displacement.tif atteso per una coppia, o se un raster non ha
         almeno 3 bande (spostamento, coerenza, angolo di incidenza).
     """
     n_time = len(list_filenames)
