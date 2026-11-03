@@ -247,6 +247,13 @@ def _find_mosaic_file(folder: str, orientation_folder: str, folder_label: str, o
         )
     return sorted(candidates)[0]
 
+def _fix_sizes(im1: np.array, im2: np.array):
+    if im1.shape[0] != im2.shape[0] or im1.shape[1] != im2.shape[1]:
+        min_rows = min([im1.shape[0],im2.shape[0]])
+        min_cols = min([im1.shape[1],im2.shape[1]])
+        im1 = im1[min_rows,min_cols]
+        im2 = im2[min_rows,min_cols]
+    return im1, im2
 
 def v_ew_displ(path: str, list_filenames: Sequence[str]):
     """
@@ -334,11 +341,21 @@ def v_ew_displ(path: str, list_filenames: Sequence[str]):
         inc_angle_desc = ds.GetRasterBand(3).ReadAsArray()
         ds = None
 
+        asc, desc = _fix_sizes(asc, desc)
+        coh_asc, coh_desc = _fix_sizes(coh_asc, coh_desc)
+        inc_angle_asc, inc_angle_desc = _fix_sizes(inc_angle_asc, inc_angle_desc)
+
+        print(asc.shape)
+        print(desc.shape)
         # calcolo dello spostamento verticale ed est-ovest
         v_asc = _safe_trig_divide(asc, inc_angle_asc, np.cos)
         ew_asc = _safe_trig_divide(asc, inc_angle_asc, np.sin)
         v_desc = _safe_trig_divide(desc, inc_angle_desc, np.cos)
         ew_desc = _safe_trig_divide(desc, inc_angle_desc, np.sin)
+        print(v_asc.shape)
+        print(ew_asc.shape)
+        print(v_desc.shape)
+        print(ew_desc.shape)
 
         v_displ_time_series[:, :, i] = -np.nanmean(np.array([v_asc, v_desc]), axis=0)
         ew_displ_time_series[:, :, i] = (ew_asc - ew_desc) / 2
