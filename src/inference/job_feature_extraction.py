@@ -24,7 +24,7 @@ import numpy as np
 from osgeo import gdal
 
 import digitalhub as dh
-from core.skd_handler import upload_artifact
+from utils.skd_handler import upload_artifact
 
 gdal.UseExceptions()
 
