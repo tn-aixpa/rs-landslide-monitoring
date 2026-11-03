@@ -143,7 +143,7 @@ def get_folders_last_months(base_path: str, n_months: int, end_date=None):
     if end_date is None:
         most_recent_date = max(date_end for _, _, date_end in valid_folders)
     else:
-        most_recent_date = max(date_end for _, _, date_end in valid_folders if date_end < datetime.strptime(end_date))
+        most_recent_date = max(date_end for _, _, date_end in valid_folders if date_end < datetime.strptime(end_date, '%Y%m%d'))
 
     month = most_recent_date.month - n_months
     year = most_recent_date.year
