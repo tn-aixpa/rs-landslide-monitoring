@@ -113,7 +113,7 @@ def get_folders_last_months(base_path: str, n_months: int, end_date=None):
         Lista ordinata delle cartelle degli ultimi n mesi
         Nome della data più recente
     """
-    pattern = re.compile(r'^\d{8}_\d{8}$')
+    pattern = re.compile(r'^\d{8}-\d{8}$')
     base = Path(base_path)
 
     valid_folders: list[tuple[str, datetime, datetime]] = []
@@ -124,7 +124,7 @@ def get_folders_last_months(base_path: str, n_months: int, end_date=None):
         if not pattern.match(folder.name):
             continue
 
-        parts = folder.name.split('_')
+        parts = folder.name.split('-')
         try:
             date_start = datetime.strptime(parts[0], '%Y%m%d')
             date_end = datetime.strptime(parts[1], '%Y%m%d')
@@ -483,8 +483,8 @@ def run(json_input: dict) -> None:
             "per garantire un allineamento corretto con le mappe."
         )
     
-    starting_date = list_filenames[0].split("_")[0]
-    ending_date = list_filenames[-1].split("_")[1]
+    starting_date = list_filenames[0].split("-")[0]
+    ending_date = list_filenames[-1].split("-")[1]
 
     logger.info("Trovate %d sottocartelle in %s", len(list_filenames), input_path)
 
