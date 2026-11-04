@@ -247,13 +247,64 @@ def _find_mosaic_file(folder: str, orientation_folder: str, folder_label: str, o
         )
     return sorted(candidates)[0]
 
-def _fix_sizes(im1: np.array, im2: np.array):
-    if im1.shape[0] != im2.shape[0] or im1.shape[1] != im2.shape[1]:
-        min_rows = min([im1.shape[0],im2.shape[0]])
-        min_cols = min([im1.shape[1],im2.shape[1]])
-        im1 = im1[min_rows,min_cols]
-        im2 = im2[min_rows,min_cols]
-    return im1, im2
+
+def resize_array(arr1: np.ndarray, arr2: np.ndarray, target_shape: tuple[int, int],
+                 fill_value=0, anchor: str = "top-left") -> np.ndarray:
+    """
+    Adatta un array 2D a target_shape tramite crop (se troppo grande) e/o
+    padding (se troppo piccolo), indipendentemente per righe e colonne.
+
+    Parameters
+    ----------
+    arr1 : np.ndarray
+        Array bidimensionale di input (non viene modificato).
+    arr2 : np.ndarray
+            Array bidimensionale di input (non viene modificato).
+    target_shape : tuple[int, int]
+        Dimensioni desiderate (righe, colonne).
+    fill_value : scalar, optional
+        Valore usato per il padding (default 0). Con np.nan e array di tipo
+        intero, il risultato viene promosso automaticamente a float.
+    anchor : {"top-left", "center"}, optional
+        "top-left": il contenuto resta ancorato in alto a sinistra
+        (crop/padding sul lato destro e in basso).
+        "center": crop/padding distribuiti in modo simmetrico.
+
+    Returns
+    -------
+    np.ndarray
+        Nuovo array di forma target_shape.
+    """
+    if arr1.ndim != 2:
+        raise ValueError(f"Atteso un array 2D, ricevuto con {arr1.ndim} dimensioni.")
+    if arr2.ndim != 2:
+            raise ValueError(f"Atteso un array 2D, ricevuto con {arr2.ndim} dimensioni.")
+    if len(target_shape) != 2 or any(int(d) != d or d <= 0 for d in target_shape):
+        raise ValueError(f"target_shape deve contenere due interi positivi, ricevuto {target_shape}.")
+    if anchor not in ("top-left", "center"):
+        raise ValueError("anchor deve essere 'top-left' oppure 'center'.")
+
+    def _offsets(src: int, dst: int):
+        n = min(src, dst)  # numero di elementi da copiare lungo l'asse
+        if anchor == "center":
+            return (src - n) // 2, (dst - n) // 2, n
+        return 0, 0, n
+
+    min_rows = min([arr1.shape[0],arr2.shape[0]])
+    min_cols = min([arr1.shape[1],arr2.shape[1]])
+    arr1 = arr1[:min_rows,:min_cols]
+    arr2 = arr2[:min_rows,:min_cols]
+    s_r, d_r, n_r = _offsets(arr1.shape[0], target_shape[0])
+    s_c, d_c, n_c = _offsets(arr1.shape[1], target_shape[1])
+
+    out_dtype1 = np.result_type(arr1.dtype, np.min_scalar_type(fill_value))
+    out1 = np.full(target_shape, fill_value, dtype=out_dtype1)
+    out1[d_r:d_r + n_r, d_c:d_c + n_c] = arr1[s_r:s_r + n_r, s_c:s_c + n_c]
+
+    out_dtype2 = np.result_type(arr2.dtype, np.min_scalar_type(fill_value))
+    out2 = np.full(target_shape, fill_value, dtype=out_dtype2)
+    out2[d_r:d_r + n_r, d_c:d_c + n_c] = arr2[s_r:s_r + n_r, s_c:s_c + n_c]
+    return out1, out2
 
 def v_ew_displ(path: str, list_filenames: Sequence[str]):
     """
@@ -341,21 +392,15 @@ def v_ew_displ(path: str, list_filenames: Sequence[str]):
         inc_angle_desc = ds.GetRasterBand(3).ReadAsArray()
         ds = None
 
-        asc, desc = _fix_sizes(asc, desc)
-        coh_asc, coh_desc = _fix_sizes(coh_asc, coh_desc)
-        inc_angle_asc, inc_angle_desc = _fix_sizes(inc_angle_asc, inc_angle_desc)
+        asc, desc = resize_array(asc, desc, (shape[0],shape[1]))
+        coh_asc, coh_desc = resize_array(coh_asc, coh_desc, (shape[0],shape[1]))
+        inc_angle_asc, inc_angle_desc = resize_array(inc_angle_asc, inc_angle_desc, (shape[0],shape[1]))
 
-        print(asc.shape)
-        print(desc.shape)
         # calcolo dello spostamento verticale ed est-ovest
         v_asc = _safe_trig_divide(asc, inc_angle_asc, np.cos)
         ew_asc = _safe_trig_divide(asc, inc_angle_asc, np.sin)
         v_desc = _safe_trig_divide(desc, inc_angle_desc, np.cos)
         ew_desc = _safe_trig_divide(desc, inc_angle_desc, np.sin)
-        print(v_asc.shape)
-        print(ew_asc.shape)
-        print(v_desc.shape)
-        print(ew_desc.shape)
 
         v_displ_time_series[:, :, i] = -np.nanmean(np.array([v_asc, v_desc]), axis=0)
         ew_displ_time_series[:, :, i] = (ew_asc - ew_desc) / 2
@@ -532,31 +577,34 @@ def run(json_input: dict) -> None:
     # Bug corretto: in origine np.logical_and() veniva chiamato con un solo argomento,
     # cosa che solleva TypeError (è una ufunc binaria). La condizione da applicare è
     # semplicemente il confronto con la soglia di coerenza media.
-    keep_img_mask = mean_coh >= CONFIG.min_mean_coherence
+    # keep_img_mask = mean_coh >= CONFIG.min_mean_coherence
 
-    if np.sum(keep_img_mask) == 0:
-        message = (
-            f"Nessun interferogramma con coerenza media superiore a {CONFIG.min_mean_coherence}. "
-            "Salto la generazione dei file TIFF per insufficienza di dati."
-        )
-        warnings.warn(message)
-        logger.warning(message)
-        logger.info("Elaborazione completata (nessun output generato).")
-        return
+    # if np.sum(keep_img_mask) == 0:
+    #     message = (
+    #         f"Nessun interferogramma con coerenza media superiore a {CONFIG.min_mean_coherence}. "
+    #         "Salto la generazione dei file TIFF per insufficienza di dati."
+    #     )
+    #     warnings.warn(message)
+    #     logger.warning(message)
+    #     logger.info("Elaborazione completata (nessun output generato).")
+    #     return
 
-    keep_list_filenames = [n for n, keep in zip(list_filenames, keep_img_mask) if keep]
-    keep_list_theta_ascending = [n for n, keep in zip(list_theta_ascending, keep_img_mask) if keep]
-    keep_list_theta_descending = [n for n, keep in zip(list_theta_descending, keep_img_mask) if keep]
+    # keep_list_filenames = [n for n, keep in zip(list_filenames, keep_img_mask) if keep]
+    # keep_list_theta_ascending = [n for n, keep in zip(list_theta_ascending, keep_img_mask) if keep]
+    # keep_list_theta_descending = [n for n, keep in zip(list_theta_descending, keep_img_mask) if keep]
 
-    v_displ_maps = v_displ_maps[:, :, keep_img_mask]
-    ew_displ_maps = ew_displ_maps[:, :, keep_img_mask]
-    coh_maps = coh_maps[:, :, keep_img_mask]
-    asc = asc[:, :, keep_img_mask]
-    desc = desc[:, :, keep_img_mask]
-    coh_asc = coh_asc[:, :, keep_img_mask]
-    coh_desc = coh_desc[:, :, keep_img_mask]
-    inc_angle_asc = inc_angle_asc[:, :, keep_img_mask]
-    inc_angle_desc = inc_angle_desc[:, :, keep_img_mask]
+    # v_displ_maps = v_displ_maps[:, :, keep_img_mask]
+    # ew_displ_maps = ew_displ_maps[:, :, keep_img_mask]
+    # coh_maps = coh_maps[:, :, keep_img_mask]
+    # asc = asc[:, :, keep_img_mask]
+    # desc = desc[:, :, keep_img_mask]
+    # coh_asc = coh_asc[:, :, keep_img_mask]
+    # coh_desc = coh_desc[:, :, keep_img_mask]
+    # inc_angle_asc = inc_angle_asc[:, :, keep_img_mask]
+    # inc_angle_desc = inc_angle_desc[:, :, keep_img_mask]
+    keep_list_filenames = list_filenames
+    keep_list_theta_ascending = list_theta_ascending
+    keep_list_theta_descending = keep_list_theta_descending
 
     avg_coh_map = np.average(coh_maps, axis=-1)
 
