@@ -434,6 +434,7 @@ def _compute_c_coefficient(inc_angle: np.ndarray, theta_list: Sequence[float],
     caso d'uso specifico.
     """
     c_time_series = np.zeros(inc_angle.shape, dtype=np.float32)
+    aspect_map, slope_map = resize_array(aspect_map,slope_map,target_shape=(inc_angle.shape[0],inc_angle.shape[1]))
     for i_c in range(c_time_series.shape[2]):
         logger.info("Platform heading angle %s per lo step temporale %d: %s", label, i_c, theta_list[i_c])
         N = -np.sin(np.deg2rad(inc_angle[:, :, i_c])) * np.cos(np.deg2rad(theta_list[i_c])) - (3 * np.pi / 2)
@@ -604,7 +605,7 @@ def run(json_input: dict) -> None:
     # inc_angle_desc = inc_angle_desc[:, :, keep_img_mask]
     keep_list_filenames = list_filenames
     keep_list_theta_ascending = list_theta_ascending
-    keep_list_theta_descending = keep_list_theta_descending
+    keep_list_theta_descending = list_theta_descending
 
     avg_coh_map = np.average(coh_maps, axis=-1)
 
