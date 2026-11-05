@@ -112,6 +112,8 @@ def main(parsed):
 
     dataset = np.asarray(dataset, np.float32)
     #gestione nan
+    dataset[np.isnan(dataset)] = 0
+    #split dataset
     validation_size = int(dataset.shape[0]*0.1)
     index = random.sample(range(len(dataset)),validation_size)
     val = dataset[index]
