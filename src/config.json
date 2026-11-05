@@ -1,0 +1,66 @@
+{
+    "name": "Anomaly_Detection_UTAE",
+    "n_gpu": 1,
+    "proj_name":"landslide_monitoring",
+    "arch": {
+        "type": "UTAE",
+        "args": {
+            "in_channels": [6],
+            "out_conv": [32, 6],
+            "input_channel_first": true,
+            "anomaly_attention": false
+        }
+    },
+    "data_loader": {
+        "type": "InSARDataLoader",
+        "args": {
+            "image_dir": "Austria_dataset/train/S1",
+            "batch_size": 128,
+            "shuffle": true,
+            "num_workers": 8,
+            "augmentations": true,
+            "drop_last": true
+        }
+    },
+    "valid_data_loader": {
+        "type": "InSARDataLoader",
+        "args": {
+            "image_dir": "Austria_dataset/val/S1",
+            "batch_size": 128,
+            "shuffle": false,
+            "num_workers": 8,
+            "augmentations": true,
+            "drop_last": true
+        }
+    },
+    "optimizer": {
+        "type": "Adam",
+        "args": {
+            "lr": 0.0001,
+            "weight_decay": 0.01,
+            "amsgrad": true
+        }
+    },
+    "loss": {
+        "type": "mse",
+        "args": {
+        }
+    },
+    "metrics": ["m_mse"],
+    "lr_scheduler": {
+        "type": "CosineAnnealingWarmRestarts",
+        "args": {
+            "T_0": 20,
+            "eta_min": 1e-6
+        }
+    },
+    "trainer": {
+        "epochs": 100,
+        "save_dir": "UTAE_Austria/",
+        "save_period": 1,
+        "verbosity": 2,
+        "monitor": "off",
+        "early_stop": 10,
+        "tensorboard": false
+    }
+}
