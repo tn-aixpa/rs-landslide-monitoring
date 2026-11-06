@@ -19,14 +19,14 @@ def main(parsed):
     input_folder = "input"
 
     proj_name = parsed.project
-    patch_size = parsed.patch_size
+    patch_size = int(parsed.patch_size)
     data_path = os.path.join(maindir, data_folder, input_folder)
     output_path = os.path.join(maindir, data_folder, output_folder)
     training_path = os.path.join(output_path,"training")
     val_path = os.path.join(output_path,"val")
     feature_folder = os.path.join(data_path, "features")
     rainfall_map_folder = os.path.join(data_path, "rainfall_map")
-    historical_data_folder = os.path.join(rainfall_map_folder,"historical_data")
+    # historical_data_folder = os.path.join(rainfall_map_folder,"historical_data")
 
     for folder in (data_path,training_path,val_path,feature_folder,rainfall_map_folder,historical_data_folder):
         os.makedirs(folder,exist_ok=True)
@@ -36,19 +36,19 @@ def main(parsed):
     feature_path = feature_artifact.download(feature_folder,overwrite=True)
 
     proj_rainfall = dh.get_or_create_project("geo")
-    rainfall_map_artifact = proj_rainfall.get_artifact("historical_data.zip")
-    rainfall_map_path = rainfall_map_artifact.download(os.path.join(rainfall_map_folder,"rainfall_map.zip"), overwrite=True)
-    with zipfile.ZipFile(rainfall_map_path, 'r') as zip_ref:
-        zip_ref.extractall(historical_data_folder)
+    rainfall_map_artifact = proj_rainfall.get_artifact("rainfall_maps")
+    rainfall_map_path = rainfall_map_artifact.download(rainfall_map_folder, overwrite=True)
+    # with zipfile.ZipFile(rainfall_map_path, 'r') as zip_ref:
+    #     zip_ref.extractall(historical_data_folder)
     #historical_data_path = os.path.join(historical_data_folder,"historical_data","output","climatology")
-    rainmaps_list = sorted([file for file in os.listdir(historical_data_folder)])
-    ds = gdal.Open(os.path.join(historical_data_folder,rainmaps_list[0]),gdal.GA_ReadOnly)
+    rainmaps_list = sorted([file for file in os.listdir(rainfall_map_path)])
+    ds = gdal.Open(os.path.join(rainfall_map_path,rainmaps_list[0]),gdal.GA_ReadOnly)
     rows_rainmap = ds.RasterYSize
     cols_rainmap = ds.RasterXSize
     ds = None
     rainmaps= np.zeros(len(rainmaps_list),rows_rainmap,cols_rainmap)
     for i, rainmap_file in enumerate(sorted(rainmaps_list)):
-        rm_file = os.path.join(historical_data_folder,rainmap_file)
+        rm_file = os.path.join(rainfall_map_path,rainmap_file)
         ds = gdal.Open(rm_file,gdal.GA_ReadOnly)
         rainmaps[i,] += ds.GetRasterBand(1).ReadAsArray()
 
