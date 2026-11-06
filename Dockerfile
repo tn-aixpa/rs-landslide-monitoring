@@ -4,6 +4,7 @@ RUN conda init bash && . ~/.bashrc
 WORKDIR /app
 COPY src/inference/job_insar_preprocessing.py .
 COPY src/inference/job_feature_extraction.py .
+COPY src/model/data_sampling.py .
 COPY src/core/ /app/utils
 
 ENTRYPOINT [ "/bin/bash" ]
