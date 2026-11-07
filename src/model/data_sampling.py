@@ -234,6 +234,7 @@ def main(parsed):
     proj_name = parsed.project
     patch_size = int(parsed.patch_size)
     offset_scale = int(parsed.offset_scale)
+    non_valid_perc = float(parsed.non_valid_perc)
     data_path = os.path.join(maindir, data_folder, input_folder)
     output_path = os.path.join(maindir, data_folder, output_folder)
     training_path = os.path.join(output_path,"training")
@@ -312,7 +313,7 @@ def main(parsed):
         for j in range(n_split_cols):
             patch = imageTS[:,:,(i*offset):(i*offset)+offset,(j*offset):(j*offset)+offset]
             valid_patch = valid_area_map[(i*offset):(i*offset)+offset,(j*offset):(j*offset)+offset]
-            if np.sum(valid_patch)>0 and not np.all(np.isnan(patch[:2])):
+            if np.sum(valid_patch==0)<((patch_size^2)*non_valid_perc) and not np.all(np.isnan(patch[:2])):
                 dataset.append(patch)
 
     dataset = np.asarray(dataset, np.float32)
@@ -341,5 +342,6 @@ if __name__ == '__main__':
     args.add_argument("-p","--project", type=str, help="The project name used to download and upload the artifacts")
     args.add_argument("--patch_size", type=int, default=128, help="The patch size used to sample the data. (default 128)")
     args.add_argument("--offset_scale", type=int, default=1, help="Value to scale the patch size and compute the sampling offset. (default 1)")
+    args.add_argument("--non_valid_perc", type=float, default=0.0, help="Percentage of non stable areas allowed during the sampling. (default 0.0)")
     parsed = args.parse_args()
     main(parsed)
