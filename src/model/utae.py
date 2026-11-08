@@ -6,8 +6,8 @@ License: MIT
 import torch
 import torch.nn as nn
 
-from model.UTAE.convlstm import ConvLSTM, BConvLSTM
-from model.UTAE.ltae import LTAE2d
+from convlstm import ConvLSTM, BConvLSTM
+from ltae import LTAE2d
 
 
 class UTAE(nn.Module):

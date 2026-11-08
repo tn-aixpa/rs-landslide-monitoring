@@ -27,7 +27,6 @@ class Trainer(BaseTrainer):
             len_epoch: the number of batches per epoch. None means to use the entire data_loader.
             seg: boolean, whether to perform segmentation task
         """
-        self.config = config
         self.device = device
         self.data_loader = data_loader
         self.input_channels = self.model.in_channels

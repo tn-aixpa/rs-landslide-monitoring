@@ -2,16 +2,17 @@ import argparse
 import collections
 import torch
 import numpy as np
-import data_loader.data_loaders as module_data
-import loss as module_loss
+from data_loader.data_loaders import InSARDataLoader
+from loss import mse
 import metric as module_metric
-import utae as module_arch
+from utae import UTAE
 from parse_config import ConfigParser
 from trainer import Trainer
 from utils import prepare_device
 import os
 import warnings
 import digitalhub as dh
+from digitalhub_runtime_python import handler
 warnings.filterwarnings("ignore")
 
 
@@ -24,33 +25,36 @@ np.random.seed(SEED)
 
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
-
-def main(config):
+@handler()
+def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_decay= 0.01,n_epochs=100,
+         save_dir="model-checkpoint/", save_period=1, verbosity=2, early_stop=10):
     maindir = "."
     data_folder = "data"
-    output_folder = "output"
+    output_folder = save_dir
     input_folder = "input"
-    proj_name = config["proj_name"]
+    out_conv=[32,in_channels]
 
     data_path = os.path.join(maindir, data_folder, input_folder)
     result_path = os.path.join(maindir, data_folder, output_folder)
-    dataset_folder = os.path.join(data_path,"dataset")
+    dataset_folder = os.path.join(data_path,"Dataset")
+    for f in (dataset_folder,result_path):
+        os.makedirs(f,exist_ok=True)
 
     proj = dh.get_or_create_project(proj_name)
     dataset_artifact = proj.get_artifact("Dataset")
-
-    logger = config.get_logger('train')
+    dataset_path = dataset_artifact.download(dataset_folder,overwrite=True)
 
     # setup data_loader instances
-    data_loader = config.init_obj('data_loader', module_data)
-    valid_data_loader = config.init_obj('val_data_loader', module_data)
+    data_loader = InSARDataLoader(os.path.join(dataset_path,"training"),batch_size=batch_size,
+                                  shuffle=True, num_workers=8,augmentations=True,drop_last=True)
+    valid_data_loader = InSARDataLoader(os.path.join(dataset_path,"val"),batch_size=batch_size,
+                                  shuffle=True, num_workers=8,augmentations=False,drop_last=True)
 
     # build model architecture, then print to console
-    model = config.init_obj('arch', module_arch) 
-    logger.info(model)
+    model = UTAE(in_channels=in_channels,out_conv=out_conv,input_channel_first=True)
 
     # prepare for (multi-device) GPU training
-    device, device_ids = prepare_device(config['n_gpu'])
+    device, device_ids = prepare_device(1)
     model = model.to(device)
     if len(device_ids) > 1:
         model = torch.nn.DataParallel(model, device_ids=device_ids)
@@ -58,17 +62,25 @@ def main(config):
 
 
     # get function handles of loss and metrics
-    criterion = config.init_obj('loss', module_loss)
-    metrics = [getattr(module_metric, met) for met in config['metrics']]
+    criterion = torch.nn.MSELoss()
+    metrics = [getattr(torch.nn.MSELoss(), 'm_mse')]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
-    lr_scheduler = config.init_obj(
-        'lr_scheduler', torch.optim.lr_scheduler, optimizer)
-    len_epoch = config['trainer'].get('len_epoch', None)
+    optimizer = torch.optim.Adam(trainable_params,lr=learning_rate,weight_decay=weight_decay,amsgrad=True)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,T_0=20,eta_min=1e-6)
+    len_epoch = n_epochs
     #freeze = config['trainer'].get('freeze', False)
-
+    config = {
+        "proj_name":proj_name,
+        "epochs":len_epoch,
+        "save_dir":result_path,
+        "save_period":save_period,
+        "verbosity":verbosity,
+        "monitor": "off",
+        "early_stop": early_stop,
+        "tensorboard": False
+    }
 
     trainer = Trainer(model, criterion, metrics, optimizer,
                       config=config,

@@ -3,7 +3,7 @@ from abc import abstractmethod
 from numpy import inf
 from logger import TensorboardWriter
 import digitalhub as dh
-import numpy as nf
+import numpy as np
 
 class BaseTrainer:
     """
@@ -13,17 +13,16 @@ class BaseTrainer:
     def __init__(self, model, criterion, metric_ftns, optimizer, config):
         self.config = config
         self.logger = config.get_logger(
-            'trainer', config['trainer']['verbosity']) 
+            'trainer', config['verbosity']) 
 
         self.model = model
         self.criterion = criterion 
         self.metric_ftns = metric_ftns
         self.optimizer = optimizer
 
-        cfg_trainer = config['trainer']
-        self.epochs = cfg_trainer['epochs']
-        self.save_period = cfg_trainer['save_period']
-        self.monitor = cfg_trainer.get('monitor', 'off')
+        self.epochs = config['epochs']
+        self.save_period = config['save_period']
+        self.monitor = config["monitor"]
 
         # configuration to monitor model performance and save best
         if self.monitor == 'off':
@@ -34,20 +33,20 @@ class BaseTrainer:
             assert self.mnt_mode in ['min', 'max']
 
             self.mnt_best = inf if self.mnt_mode == 'min' else -inf
-            self.early_stop = cfg_trainer.get('early_stop', inf)
+            self.early_stop = config["early_stop"]
             if self.early_stop <= 0:
                 self.early_stop = inf
 
         self.start_epoch = 1
 
-        self.checkpoint_dir = config.save_dir
+        self.checkpoint_dir = config["save_dir"]
 
         # setup visualization writer instance
-        self.writer = TensorboardWriter(
-            config.log_dir, self.logger, cfg_trainer['tensorboard'])
+        self.writer = None#TensorboardWriter(
+        #     config.log_dir, self.logger, config['tensorboard'])
 
-        if config.resume is not None:
-            self._resume_checkpoint(config.resume)
+        # if config.resume is not None:
+        #     self._resume_checkpoint(config.resume)
 
     @abstractmethod
     def _train_epoch(self, epoch):
