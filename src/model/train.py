@@ -93,22 +93,22 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
     trainer.train()
 
 
-if __name__ == '__main__':
-    args = argparse.ArgumentParser(description='PyTorch Template')
-    args.add_argument('-c', '--config', default=None, type=str,
-                      help='config file path (default: None)')
-    args.add_argument('-r', '--resume', default=None, type=str,
-                      help='path to latest checkpoint (default: None)')
-    args.add_argument('-d', '--device', default=None, type=str,
-                      help='indices of GPUs to enable (default: all)')
+# if __name__ == '__main__':
+#     args = argparse.ArgumentParser(description='PyTorch Template')
+#     args.add_argument('-c', '--config', default=None, type=str,
+#                       help='config file path (default: None)')
+#     args.add_argument('-r', '--resume', default=None, type=str,
+#                       help='path to latest checkpoint (default: None)')
+#     args.add_argument('-d', '--device', default=None, type=str,
+#                       help='indices of GPUs to enable (default: all)')
 
-    # custom cli options to modify configuration from default values given in json file.
-    CustomArgs = collections.namedtuple('CustomArgs', 'flags type target')
-    options = [
-        CustomArgs(['--lr', '--learning_rate'],
-                   type=float, target='optimizer;args;lr'),
-        CustomArgs(['--bs', '--batch_size'], type=int,
-                   target='data_loader;args;batch_size')
-    ]
-    config = ConfigParser.from_args(args, options)
-    main(config)
+#     # custom cli options to modify configuration from default values given in json file.
+#     CustomArgs = collections.namedtuple('CustomArgs', 'flags type target')
+#     options = [
+#         CustomArgs(['--lr', '--learning_rate'],
+#                    type=float, target='optimizer;args;lr'),
+#         CustomArgs(['--bs', '--batch_size'], type=int,
+#                    target='data_loader;args;batch_size')
+#     ]
+#     config = ConfigParser.from_args(args, options)
+#     main(config)
