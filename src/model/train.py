@@ -1,19 +1,20 @@
-import argparse
-import collections
+#import argparse
+#import collections
 import torch
 import numpy as np
 from data_loader.data_loaders import InSARDataLoader
-from loss import mse
-import metric as module_metric
+#from loss import mse
+#import metric as module_metric
 from utae import UTAE
-from parse_config import ConfigParser
-from trainer import Trainer
+# parse_config import ConfigParser
+#from trainer import Trainer
 from utils import prepare_device
 import os
 import warnings
 import digitalhub as dh
 from digitalhub_runtime_python import handler
-from logger.logger import setup_logging
+#from logger.logger import setup_logging
+import tqdm
 warnings.filterwarnings("ignore")
 
 
@@ -28,7 +29,7 @@ os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
 @handler()
 def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_decay= 0.01,n_epochs=100,
-         save_dir="model-checkpoint/", save_period=1, verbosity=2, early_stop=10):
+         save_dir="model-checkpoint/", save_period=1, verbosity=2, early_stop=10, anomaly_attention = False):
     maindir = "."
     data_folder = "data"
     output_folder = save_dir
@@ -52,8 +53,8 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
                                   shuffle=True, num_workers=8,augmentations=False,drop_last=True)
 
     # build model architecture, then print to console
-    model = UTAE(in_channels=in_channels,out_conv=out_conv)
-
+    model = UTAE(in_channels=in_channels,out_conv=out_conv,anomaly_attention=anomaly_attention)
+    win_size = model.win_size
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(1)
     model = model.to(device)
@@ -63,8 +64,8 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
 
 
     # get function handles of loss and metrics
-    criterion = torch.nn.MSELoss()
-    metrics = [torch.nn.MSELoss()]
+    criterion = torch.nn.MSELoss().to(device)
+    # metrics = [torch.nn.MSELoss()]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
@@ -82,17 +83,71 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
         "early_stop": early_stop,
         "tensorboard": False
     }
-    setup_logging(os.path.join(config["save_dir"],"log"))
-    os.makedirs(os.path.join(config["save_dir"],"log"),exist_ok=True)
-    trainer = Trainer(model, criterion, metrics, optimizer,
-                      config=config,
-                      device=device,
-                      data_loader=data_loader,
-                      valid_data_loader=valid_data_loader,
-                      lr_scheduler=lr_scheduler,
-                      len_epoch=len_epoch)
+    # setup_logging(os.path.join(config["save_dir"],"log"))
+    # os.makedirs(os.path.join(config["save_dir"],"log"),exist_ok=True)
+    # trainer = Trainer(model, criterion, metrics, optimizer,
+    #                   config=config,
+    #                   device=device,
+    #                   data_loader=data_loader,
+    #                   valid_data_loader=valid_data_loader,
+    #                   lr_scheduler=lr_scheduler,
+    #                   len_epoch=len_epoch)
 
-    trainer.train()
+    # trainer.train()
+    best_loss = 9999.0
+    for epoch in range(1, len_epoch + 1):
+        model.train()
+        total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
+        for im in train_bar:
+            im, target = im.to(non_blocking=True, device=device), target.to(non_blocking=True, device=device)
+            optimizer.zero_grad()
+            if anomaly_attention:
+                out, maps, prior, sigma = model(im)
+                loss1, loss2 = criterion(out,target,maps,prior,win_size)
+                loss1.backward(retain_graph=True)
+                loss2.backward()
+                loss = loss1
+
+            else:
+                out = model(im)
+                loss = criterion(out, target)
+                loss.backward() 
+            
+            optimizer.step()
+            
+            total_num += data_loader.batch_size
+            total_loss += loss.item() * data_loader.batch_size
+            train_bar.set_description(f'Epoch: [{epoch}/{len_epoch}], Loss: {loss.item():.4f}')
+            
+        epoch_loss = total_loss / total_num
+        proj.log_metric("loss", epoch_loss)
+
+        model.eval()
+        total_loss, total_num, train_bar = 0.0, 0, tqdm(valid_data_loader)
+
+        for im in train_bar:
+            im, target = im.to(non_blocking=True, device=device), target.to(non_blocking=True, device=device)
+            optimizer.zero_grad()
+            if anomaly_attention:
+                out, maps, prior, sigma = model(im)
+                loss, loss2 = criterion(out,target,maps,prior,win_size)
+
+            else:
+                out = model(im)
+                loss = criterion(out, target)
+            
+            total_num += valid_data_loader.batch_size
+            total_loss += loss.item() * valid_data_loader.batch_size
+            train_bar.set_description(f'Epoch: [{epoch}/{len_epoch}], Val Loss: {loss.item():.4f}')
+
+        val_loss = total_loss / total_num
+        proj.log_metric("val_loss", val_loss)
+        
+        if val_loss < best_loss:
+            filename = os.path.join(result_path,'model_best.pth')
+            torch.save(model.state_dict(), filename)
+            proj.log_model(name="AD-model",kind="model",source=filename)
+            best_loss = val_loss
 
 
 # if __name__ == '__main__':
