@@ -6,7 +6,7 @@ License: MIT
 import torch
 import torch.nn as nn
 
-from convlstm import ConvLSTM, BConvLSTM
+from convlstm import ConvLSTM#, BConvLSTM
 from ltae import LTAE2d
 
 
@@ -542,20 +542,20 @@ class RecUNet(nn.Module):
                 kernel_size=3,
                 padding=1,
             )
-        elif temporal == "blstm":
-            size = int(input_size / str_conv_s ** (self.n_stages - 1))
-            self.temporal_encoder = BConvLSTM(
-                input_dim=encoder_widths[-1],
-                input_size=(size, size),
-                hidden_dim=hidden_dim,
-                kernel_size=(3, 3),
-            )
-            self.out_convlstm = nn.Conv2d(
-                in_channels=2 * hidden_dim,
-                out_channels=encoder_widths[-1],
-                kernel_size=3,
-                padding=1,
-            )
+        # elif temporal == "blstm":
+        #     size = int(input_size / str_conv_s ** (self.n_stages - 1))
+        #     self.temporal_encoder = BConvLSTM(
+        #         input_dim=encoder_widths[-1],
+        #         input_size=(size, size),
+        #         hidden_dim=hidden_dim,
+        #         kernel_size=(3, 3),
+        #     )
+        #     self.out_convlstm = nn.Conv2d(
+        #         in_channels=2 * hidden_dim,
+        #         out_channels=encoder_widths[-1],
+        #         kernel_size=3,
+        #         padding=1,
+        #     )
         elif temporal == "mono" or temporal=="mean":
             self.temporal_encoder = None
         self.out_conv = ConvBlock(nkernels=[decoder_widths[0]] + out_conv, padding_mode=padding_mode)
@@ -580,9 +580,9 @@ class RecUNet(nn.Module):
             _, out = self.temporal_encoder(feature_maps[-1], pad_mask=pad_mask)
             out = out[0][1]  # take last cell state as embedding
             out = self.out_convlstm(out)
-        elif self.temporal == "blstm":
-            out = self.temporal_encoder(feature_maps[-1], pad_mask=pad_mask)
-            out = self.out_convlstm(out)
+        # elif self.temporal == "blstm":
+        #     out = self.temporal_encoder(feature_maps[-1], pad_mask=pad_mask)
+        #     out = self.out_convlstm(out)
         elif self.temporal == "mono" or self.temporal == "mono":
             out = feature_maps[-1]
 
