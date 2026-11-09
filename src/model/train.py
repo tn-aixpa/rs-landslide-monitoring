@@ -63,7 +63,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
 
     # get function handles of loss and metrics
     criterion = torch.nn.MSELoss()
-    metrics = [getattr(torch.nn.MSELoss(), 'm_mse')]
+    metrics = [torch.nn.MSELoss()]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
