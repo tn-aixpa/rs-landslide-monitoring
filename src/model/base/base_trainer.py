@@ -133,13 +133,12 @@ class BaseTrainer:
             'monitor_best': self.mnt_best,
             'config': self.config
         }
-        filename = str(self.checkpoint_dir /
-                       'checkpoint-epoch{}.pth'.format(epoch))
+        filename = '{}/checkpoint-epoch{}.pth'.format(self.checkpoint_dir,epoch)
         torch.save(state, filename)
         self.logger.info("Saving checkpoint: {} ...".format(filename))
         proj.log_model(name="AD-model",kind="model",source=filename)
         if save_best:
-            best_path = str(self.checkpoint_dir / 'model_best.pth')
+            best_path = '{}/model_best.pth'.format(self.checkpoint_dir)
             torch.save(state, best_path)
             self.logger.info("Saving current best: model_best.pth ...")
             proj.log_model(name="AD-model",kind="model",source=filename)
