@@ -14,7 +14,7 @@ import warnings
 import digitalhub as dh
 from digitalhub_runtime_python import handler
 #from logger.logger import setup_logging
-import tqdm
+from tqdm import tqdm
 warnings.filterwarnings("ignore")
 
 
