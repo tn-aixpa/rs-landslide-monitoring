@@ -98,7 +98,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
     for epoch in range(1, len_epoch + 1):
         model.train()
         total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
-        for im in train_bar:
+        for im, target in train_bar:
             im, target = im.to(non_blocking=True, device=device), target.to(non_blocking=True, device=device)
             optimizer.zero_grad()
             if anomaly_attention:
@@ -125,7 +125,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
         model.eval()
         total_loss, total_num, train_bar = 0.0, 0, tqdm(valid_data_loader)
 
-        for im in train_bar:
+        for im, target in train_bar:
             im, target = im.to(non_blocking=True, device=device), target.to(non_blocking=True, device=device)
             optimizer.zero_grad()
             if anomaly_attention:
