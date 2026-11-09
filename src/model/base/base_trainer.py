@@ -4,6 +4,7 @@ from numpy import inf
 from logger import TensorboardWriter
 import digitalhub as dh
 import numpy as np
+import logging
 
 class BaseTrainer:
     """
@@ -12,8 +13,13 @@ class BaseTrainer:
 
     def __init__(self, model, criterion, metric_ftns, optimizer, config):
         self.config = config
-        self.logger = config.get_logger(
-            'trainer', config['verbosity']) 
+        self.logger = logging.getLogger("trainer")
+        self.log_levels = {
+                    0: logging.WARNING,
+                    1: logging.INFO,
+                    2: logging.DEBUG
+                }
+        self.logger.setLevel(self.log_levels[config["verbosity"]]) 
 
         self.model = model
         self.criterion = criterion 
