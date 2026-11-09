@@ -13,6 +13,7 @@ import os
 import warnings
 import digitalhub as dh
 from digitalhub_runtime_python import handler
+from logger.logger import setup_logging
 warnings.filterwarnings("ignore")
 
 
@@ -81,7 +82,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
         "early_stop": early_stop,
         "tensorboard": False
     }
-
+    setup_logging(os.path.join(config["save_dir"],"log"))
     trainer = Trainer(model, criterion, metrics, optimizer,
                       config=config,
                       device=device,
