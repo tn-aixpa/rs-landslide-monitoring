@@ -51,7 +51,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
                                   shuffle=True, num_workers=8,augmentations=False,drop_last=True)
 
     # build model architecture, then print to console
-    model = UTAE(in_channels=in_channels,out_conv=out_conv,input_channel_first=True)
+    model = UTAE(in_channels=in_channels,out_conv=out_conv)
 
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(1)
