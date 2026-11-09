@@ -83,6 +83,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
         "tensorboard": False
     }
     setup_logging(os.path.join(config["save_dir"],"log"))
+    os.makedirs(os.path.join(config["save_dir"],"log"),exist_ok=True)
     trainer = Trainer(model, criterion, metrics, optimizer,
                       config=config,
                       device=device,
