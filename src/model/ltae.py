@@ -4,8 +4,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .positional_encoding import PositionalEncoder
-from .attn import AttentionLayer, AnomalyAttention
+from positional_encoding import PositionalEncoder
+from attn import AttentionLayer, AnomalyAttention
 
 
 class LTAE2d(nn.Module):
