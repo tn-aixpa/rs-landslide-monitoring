@@ -42,17 +42,20 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
     for f in (dataset_folder,result_path):
         os.makedirs(f,exist_ok=True)
 
+    print("Scaricamento dataset")
     proj = dh.get_or_create_project(proj_name)
     dataset_artifact = proj.get_artifact("Dataset")
     dataset_path = dataset_artifact.download(dataset_folder,overwrite=True)
 
     # setup data_loader instances
+    print("Setup data loader")
     data_loader = InSARDataLoader(os.path.join(dataset_path,"training"),batch_size=batch_size,
                                   shuffle=True, num_workers=8,augmentations=True,drop_last=True)
     valid_data_loader = InSARDataLoader(os.path.join(dataset_path,"val"),batch_size=batch_size,
                                   shuffle=True, num_workers=8,augmentations=False,drop_last=True)
 
     # build model architecture, then print to console
+    print("Creazione modello")
     model = UTAE(in_channels=in_channels,out_conv=out_conv,anomaly_attention=anomaly_attention)
     win_size = model.win_size
     # prepare for (multi-device) GPU training
@@ -64,10 +67,12 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
 
 
     # get function handles of loss and metrics
+    print("Loss function")
     criterion = torch.nn.MSELoss().to(device)
     # metrics = [torch.nn.MSELoss()]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
+    print("Creazione optimizer e learning rate scheduler")
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = torch.optim.Adam(trainable_params,lr=learning_rate,weight_decay=weight_decay,amsgrad=True)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,T_0=20,eta_min=1e-6)
@@ -94,6 +99,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
     #                   len_epoch=len_epoch)
 
     # trainer.train()
+    print("Training")
     best_loss = 9999.0
     for epoch in range(1, len_epoch + 1):
         model.train()
