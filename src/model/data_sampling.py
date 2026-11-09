@@ -307,8 +307,8 @@ def main(parsed):
     print("Sampling")
     #sampling
     offset = patch_size//offset_scale
-    n_split_rows = imageTS.shape[2]//offset
-    n_split_cols = imageTS.shape[3]//offset
+    n_split_rows = (imageTS.shape[2]-patch_size)//offset
+    n_split_cols = (imageTS.shape[3]-patch_size)//offset
     dataset = []
     for i in range(n_split_rows):
         for j in range(n_split_cols):
