@@ -50,9 +50,9 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
     # setup data_loader instances
     print("Setup data loader")
     data_loader = InSARDataLoader(os.path.join(dataset_path,"training"),batch_size=batch_size,
-                                  shuffle=True, num_workers=8,augmentations=True,drop_last=True)
+                                  shuffle=True, num_workers=1,augmentations=True,drop_last=True)
     valid_data_loader = InSARDataLoader(os.path.join(dataset_path,"val"),batch_size=batch_size,
-                                  shuffle=True, num_workers=8,augmentations=False,drop_last=True)
+                                  shuffle=True, num_workers=1,augmentations=False,drop_last=True)
 
     # build model architecture, then print to console
     print("Creazione modello")
