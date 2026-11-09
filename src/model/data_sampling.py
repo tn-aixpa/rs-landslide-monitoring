@@ -314,7 +314,7 @@ def main(parsed):
         for j in range(n_split_cols):
             patch = imageTS[:,:,(i*offset):(i*offset)+patch_size,(j*offset):(j*offset)+patch_size]
             valid_patch = valid_area_map[(i*offset):(i*offset)+patch_size,(j*offset):(j*offset)+patch_size]
-            if np.sum(valid_patch==0)<((patch_size^2)*non_valid_perc) and not np.all(np.isnan(patch[:,:2,:,:])):
+            if np.sum(valid_patch)>0 and not np.all(np.isnan(patch[:,:2,:,:])):
                 dataset.append(patch)
 
     dataset = np.asarray(dataset, np.float32)
