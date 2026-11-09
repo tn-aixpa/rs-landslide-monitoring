@@ -286,23 +286,23 @@ def main(parsed):
         rainmaps[i,] += ds.GetRasterBand(1).ReadAsArray()
 
     print("Merge dati")    
-    imageTS = np.zeros([3,len(list_feature_path),rows,cols],np.float32)
+    imageTS = np.zeros([len(list_feature_path),3,rows,cols],np.float32)
 
     for i, path in enumerate(list_feature_path):
         f_path = os.path.join(feature_path,path)
         vertical_displ_sum_ds = gdal.Open(os.path.join(f_path,"somma_cumulata_spostamento_verticale.tif"), gdal.GA_ReadOnly)
-        imageTS[0,i,:,:] = resize_array(vertical_displ_sum_ds.GetRasterBand(1).ReadAsArray(),(rows,cols))
+        imageTS[i,0,:,:] = resize_array(vertical_displ_sum_ds.GetRasterBand(1).ReadAsArray(),(rows,cols))
         vertical_displ_sum_ds = None
 
         horizontal_displ_sum_ds = gdal.Open(os.path.join(f_path,"somma_cumulata_spostamento_orizzontale.tif"), gdal.GA_ReadOnly)
-        imageTS[1,i,:,:] = resize_array(horizontal_displ_sum_ds.GetRasterBand(1).ReadAsArray(),(rows,cols))
+        imageTS[i,1,:,:] = resize_array(horizontal_displ_sum_ds.GetRasterBand(1).ReadAsArray(),(rows,cols))
         horizontal_displ_sum_ds = None
-    imageTS[2,] = (rainmaps)
+    imageTS[:,2,:,:] = (rainmaps)
     print("Normalizzazione")
     #normalization
-    imageTS[0,] = normalize_in_range(imageTS[0,],feat_range=[-0.55,0.55], min_value=-1, max_value=1)
-    imageTS[1,] = normalize_in_range(imageTS[1,],feat_range=[-0.55,0.55], min_value=-1, max_value=1)
-    imageTS[2,] = normalize_in_range(imageTS[2,],feat_range=[0,800], min_value=0, max_value=1)
+    imageTS[:,0,:,:] = normalize_in_range(imageTS[:,0,:,:],feat_range=[-0.55,0.55], min_value=-1, max_value=1)
+    imageTS[:,1,:,:] = normalize_in_range(imageTS[:,1,:,:],feat_range=[-0.55,0.55], min_value=-1, max_value=1)
+    imageTS[:,2,:,:] = normalize_in_range(imageTS[:,2,:,:],feat_range=[0,800], min_value=0, max_value=1)
     print("Sampling")
     #sampling
     offset = patch_size//offset_scale
