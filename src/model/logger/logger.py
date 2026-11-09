@@ -14,7 +14,7 @@ def setup_logging(save_dir, log_config='logger/logger_config.json', default_leve
         # modify logging paths based on run config
         for _, handler in config['handlers'].items():
             if 'filename' in handler:
-                handler['filename'] = str(save_dir / handler['filename'])
+                handler['filename'] = "{}/{}".format(save_dir,handler['filename'])
 
         logging.config.dictConfig(config)
     else:
