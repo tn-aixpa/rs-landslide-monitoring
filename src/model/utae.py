@@ -76,6 +76,7 @@ class UTAE(nn.Module):
         self.encoder_widths = encoder_widths
         self.decoder_widths = decoder_widths
         self.anomaly_attention = anomaly_attention
+        self.win_size = win_size
         self.enc_dim = (
             decoder_widths[0] if decoder_widths is not None else encoder_widths[0]
         )
