@@ -143,14 +143,17 @@ class UTAE(nn.Module):
 
     def forward(self, input, batch_positions=None, return_att=False):
         print("input shape:", input.shape)
+        print("input type:",input.type)
         pad_mask = (
             (input == self.pad_value).all(dim=-1).all(dim=-1).all(dim=-1)
         )  # BxT pad mask
         out = self.in_conv.smart_forward(input)
+        print("First encoder type:",out.type)
         feature_maps = [out]
         # SPATIAL ENCODER
         for i in range(self.n_stages - 1):
             out = self.down_blocks[i].smart_forward(feature_maps[-1])
+            print(f"encoder layer {i} type: {out.type}")
             feature_maps.append(out)
         # TEMPORAL ENCODER
         if self.anomaly_attention:
