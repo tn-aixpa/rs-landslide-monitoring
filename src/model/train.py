@@ -30,7 +30,7 @@ os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 @handler()
 def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_decay= 0.01,n_epochs=100,
          save_dir="model-checkpoint/", save_period=1, verbosity=2, early_stop=10, anomaly_attention = False):
-    maindir = "."
+    maindir = "/app"
     data_folder = "data"
     output_folder = save_dir
     input_folder = "input"
