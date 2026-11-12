@@ -57,7 +57,7 @@ class FeatureConfig:
     # soglia di coerenza media minima per tenere un'interferogramma nella serie storica
     min_mean_coherence: float = 0.3
     # soglia di coerenza per selezionare i punti "molto coerenti" usati per il calcolo dell'offset
-    high_coherence_threshold: float = 0.9
+    high_coherence_threshold: float = 0.85
     # soglia di coerenza media (sulle mappe cumulate) sotto la quale si maschera con NaN
     cumulative_coherence_threshold: float = 0.4
     # soglia di coerenza per-banda sotto la quale si maschera con NaN le mappe della serie storica
@@ -575,10 +575,13 @@ def run(json_input: dict) -> None:
     asc -= offset_asc
     desc -= offset_desc
 
+    ew_displ_maps[np.logical_or(ew_displ_maps>0.55,ew_displ_maps<-0.55)]=0
+    v_displ_maps[np.logical_or(v_displ_maps>0.55,v_displ_maps<-0.55)]=0
+
     # Bug corretto: in origine np.logical_and() veniva chiamato con un solo argomento,
     # cosa che solleva TypeError (è una ufunc binaria). La condizione da applicare è
     # semplicemente il confronto con la soglia di coerenza media.
-    # keep_img_mask = mean_coh >= CONFIG.min_mean_coherence
+    low_coh_mask = mean_coh < CONFIG.min_mean_coherence
 
     # if np.sum(keep_img_mask) == 0:
     #     message = (
@@ -594,15 +597,10 @@ def run(json_input: dict) -> None:
     # keep_list_theta_ascending = [n for n, keep in zip(list_theta_ascending, keep_img_mask) if keep]
     # keep_list_theta_descending = [n for n, keep in zip(list_theta_descending, keep_img_mask) if keep]
 
-    # v_displ_maps = v_displ_maps[:, :, keep_img_mask]
-    # ew_displ_maps = ew_displ_maps[:, :, keep_img_mask]
-    # coh_maps = coh_maps[:, :, keep_img_mask]
-    # asc = asc[:, :, keep_img_mask]
-    # desc = desc[:, :, keep_img_mask]
-    # coh_asc = coh_asc[:, :, keep_img_mask]
-    # coh_desc = coh_desc[:, :, keep_img_mask]
-    # inc_angle_asc = inc_angle_asc[:, :, keep_img_mask]
-    # inc_angle_desc = inc_angle_desc[:, :, keep_img_mask]
+    v_displ_maps[:, :, low_coh_mask] = 0
+    ew_displ_maps[:, :, low_coh_mask] = 0
+    asc[:, :, low_coh_mask] = 0
+    desc[:, :, low_coh_mask] = 0
     keep_list_filenames = list_filenames
     keep_list_theta_ascending = list_theta_ascending
     keep_list_theta_descending = list_theta_descending
