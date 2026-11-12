@@ -99,6 +99,10 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
     #                   len_epoch=len_epoch)
 
     # trainer.train()
+    print("Saving untrained model")
+    filename_untrained_model = os.path.join(result_path,'model_untrained.pth')
+    torch.save(model.state_dict(), filename_untrained_model)
+    proj.log_model(name="AD-model",kind="model",source=filename_untrained_model)
     print("Training")
     best_loss = 9999.0
     for epoch in range(1, len_epoch + 1):
