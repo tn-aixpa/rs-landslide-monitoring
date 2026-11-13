@@ -601,10 +601,10 @@ def run(json_input: dict) -> None:
     # keep_list_theta_ascending = [n for n, keep in zip(list_theta_ascending, keep_img_mask) if keep]
     # keep_list_theta_descending = [n for n, keep in zip(list_theta_descending, keep_img_mask) if keep]
 
-    # v_displ_maps[:, :, low_coh_mask] = 0
-    # ew_displ_maps[:, :, low_coh_mask] = 0
-    # asc[:, :, low_coh_mask] = 0
-    # desc[:, :, low_coh_mask] = 0
+    v_displ_maps[:, :, low_coh_mask] = 0
+    ew_displ_maps[:, :, low_coh_mask] = 0
+    asc[:, :, low_coh_mask] = 0
+    desc[:, :, low_coh_mask] = 0
     keep_list_filenames = list_filenames
     keep_list_theta_ascending = list_theta_ascending
     keep_list_theta_descending = list_theta_descending
