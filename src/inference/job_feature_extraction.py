@@ -55,7 +55,7 @@ def _configure_logging() -> None:
 class FeatureConfig:
     n_months: int = 4
     # soglia di coerenza media minima per tenere un'interferogramma nella serie storica
-    min_mean_coherence: float = 0.3
+    min_mean_coherence: float = 0.4
     # soglia di coerenza per selezionare i punti "molto coerenti" usati per il calcolo dell'offset
     high_coherence_threshold: float = 0.85
     # soglia di coerenza media (sulle mappe cumulate) sotto la quale si maschera con NaN
@@ -557,13 +557,14 @@ def run(json_input: dict) -> None:
     ) = v_ew_displ(input_path, list_filenames)
 
     # Tiene solo gli interferogrammi con coerenza media superiore alla soglia
-    mean_coh = np.average(coh_maps, axis=(0, 1))
     n_time = ew_displ_maps.shape[2]
+    mean_coh = np.zeros(n_time,dtype=np.float32)#np.average(coh_maps, axis=(0, 1))
     offset_ew_displ_maps = np.zeros(n_time, dtype=np.float32)
     offset_v_displ_maps = np.zeros(n_time, dtype=np.float32)
     offset_asc = np.zeros(n_time, dtype=np.float32)
     offset_desc = np.zeros(n_time, dtype=np.float32)
     for i in range(n_time):
+        mean_coh[i] = np.average(coh_maps[:,:,i][coh_maps[:,:,i]!=0])
         most_coh_points = coh_maps[:, :, i] > CONFIG.high_coherence_threshold
         offset_ew_displ_maps[i] = np.nanmean(ew_displ_maps[:, :, i][most_coh_points])
         offset_v_displ_maps[i] = np.nanmean(v_displ_maps[:, :, i][most_coh_points])
@@ -574,9 +575,12 @@ def run(json_input: dict) -> None:
     v_displ_maps -= offset_v_displ_maps
     asc -= offset_asc
     desc -= offset_desc
+    print(mean_coh)
 
-    ew_displ_maps[np.logical_or(ew_displ_maps>0.55,ew_displ_maps<-0.55)]=0
-    v_displ_maps[np.logical_or(v_displ_maps>0.55,v_displ_maps<-0.55)]=0
+    ew_displ_maps[coh_maps<CONFIG.min_mean_coherence] = 0#[np.logical_or(ew_displ_maps>0.55,ew_displ_maps<-0.55)]=0
+    v_displ_maps[coh_maps<CONFIG.min_mean_coherence] = 0#[np.logical_or(v_displ_maps>0.55,v_displ_maps<-0.55)]=0
+    asc[coh_asc<CONFIG.min_mean_coherence] = 0
+    desc[coh_desc<CONFIG.min_mean_coherence] = 0
 
     # Bug corretto: in origine np.logical_and() veniva chiamato con un solo argomento,
     # cosa che solleva TypeError (è una ufunc binaria). La condizione da applicare è
@@ -597,10 +601,10 @@ def run(json_input: dict) -> None:
     # keep_list_theta_ascending = [n for n, keep in zip(list_theta_ascending, keep_img_mask) if keep]
     # keep_list_theta_descending = [n for n, keep in zip(list_theta_descending, keep_img_mask) if keep]
 
-    v_displ_maps[:, :, low_coh_mask] = 0
-    ew_displ_maps[:, :, low_coh_mask] = 0
-    asc[:, :, low_coh_mask] = 0
-    desc[:, :, low_coh_mask] = 0
+    # v_displ_maps[:, :, low_coh_mask] = 0
+    # ew_displ_maps[:, :, low_coh_mask] = 0
+    # asc[:, :, low_coh_mask] = 0
+    # desc[:, :, low_coh_mask] = 0
     keep_list_filenames = list_filenames
     keep_list_theta_ascending = list_theta_ascending
     keep_list_theta_descending = list_theta_descending
@@ -642,6 +646,12 @@ def run(json_input: dict) -> None:
     c_descending_time_series = _compute_c_coefficient(
         inc_angle_desc, keep_list_theta_descending, slope_map, aspect_map, "descending"
     )
+    if previous_feature_artifact_path != "":
+        logger.info(
+            "Artifact '%s' già esistente nel progetto '%s'. Aggiornamento con i nuovi dati.",
+            output_artifact_name, project_name,
+        )
+        shutil.copytree(previous_feature_artifact_path, result_path, dirs_exist_ok=True)
 
     out_dir = os.path.join(result_path, f"{starting_date}_{ending_date}")
     os.makedirs(out_dir, exist_ok=True)
@@ -696,15 +706,7 @@ def run(json_input: dict) -> None:
 
     shutil.copy(legend_path, os.path.join(out_dir, "legend.qml"))
 
-    if previous_feature_artifact_path=="":
-        upload_artifact(artifact_name=output_artifact_name, project_name=project_name, src_path=result_path)
-    else:
-        logger.info(
-            "Artifact '%s' già esistente nel progetto '%s'. Aggiornamento con i nuovi dati.",
-            output_artifact_name, project_name,
-        )
-        shutil.copytree(previous_feature_artifact_path, result_path, dirs_exist_ok=True)
-        upload_artifact(artifact_name=output_artifact_name, project_name=project_name, src_path=result_path)
+    upload_artifact(artifact_name=output_artifact_name, project_name=project_name, src_path=result_path)
 
     logger.info("Elaborazione completata.")
 
