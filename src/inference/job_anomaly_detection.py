@@ -170,7 +170,7 @@ def mask_to_vectors(
 
         if n_written == 0:
             logger.warning("No polygons found in the mask: the output files are empty.")
-            return
+            return None, None
         else:
             logger.info("Written %d polygons to %s and %d points to %s.",
                         n_written, polygon_path, n_written, centroid_path)
