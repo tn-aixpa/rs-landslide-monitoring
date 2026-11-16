@@ -577,10 +577,10 @@ def run(json_input: dict) -> None:
     desc -= offset_desc
     print(mean_coh)
 
-    ew_displ_maps[coh_maps<CONFIG.min_mean_coherence] = 0#[np.logical_or(ew_displ_maps>0.55,ew_displ_maps<-0.55)]=0
-    v_displ_maps[coh_maps<CONFIG.min_mean_coherence] = 0#[np.logical_or(v_displ_maps>0.55,v_displ_maps<-0.55)]=0
-    asc[coh_asc<CONFIG.min_mean_coherence] = 0
-    desc[coh_desc<CONFIG.min_mean_coherence] = 0
+    ew_displ_maps[coh_maps<CONFIG.min_mean_coherence] = np.nan#[np.logical_or(ew_displ_maps>0.55,ew_displ_maps<-0.55)]=0
+    v_displ_maps[coh_maps<CONFIG.min_mean_coherence] = np.nan#[np.logical_or(v_displ_maps>0.55,v_displ_maps<-0.55)]=0
+    asc[coh_asc<CONFIG.min_mean_coherence] = np.nan
+    desc[coh_desc<CONFIG.min_mean_coherence] = np.nan
 
     # Bug corretto: in origine np.logical_and() veniva chiamato con un solo argomento,
     # cosa che solleva TypeError (è una ufunc binaria). La condizione da applicare è
@@ -601,24 +601,34 @@ def run(json_input: dict) -> None:
     # keep_list_theta_ascending = [n for n, keep in zip(list_theta_ascending, keep_img_mask) if keep]
     # keep_list_theta_descending = [n for n, keep in zip(list_theta_descending, keep_img_mask) if keep]
 
-    v_displ_maps[:, :, low_coh_mask] = 0
-    ew_displ_maps[:, :, low_coh_mask] = 0
-    asc[:, :, low_coh_mask] = 0
-    desc[:, :, low_coh_mask] = 0
+    v_displ_maps[:, :, low_coh_mask] = np.nan
+    ew_displ_maps[:, :, low_coh_mask] = np.nan
+    asc[:, :, low_coh_mask] = np.nan
+    desc[:, :, low_coh_mask] = np.nan
     keep_list_filenames = list_filenames
     keep_list_theta_ascending = list_theta_ascending
     keep_list_theta_descending = list_theta_descending
 
     avg_coh_map = np.average(coh_maps, axis=-1)
 
-    cum_sum_ew_displ_map = np.sum(ew_displ_maps, axis=-1)
+    ew_displ_maps4sum = np.copy(ew_displ_maps)
+    ew_displ_maps4sum[np.isnan(ew_displ_maps4sum)]=0
+    cum_sum_ew_displ_map = np.sum(ew_displ_maps4sum, axis=-1)
     masked_cum_sum_ew_displ_map = _mask_by_coherence(cum_sum_ew_displ_map, avg_coh_map, CONFIG.cumulative_coherence_threshold)
 
-    cum_sum_v_displ_map = np.sum(v_displ_maps, axis=-1)
+    v_displ_maps4sum = np.copy(v_displ_maps)
+    v_displ_maps4sum[np.isnan(v_displ_maps4sum)]=0
+    cum_sum_v_displ_map = np.sum(v_displ_maps4sum, axis=-1)
     masked_cum_sum_v_displ_map = _mask_by_coherence(cum_sum_v_displ_map, avg_coh_map, CONFIG.cumulative_coherence_threshold)
 
-    cum_sum_asc = np.sum(asc, axis=-1)
-    cum_sum_desc = np.sum(desc, axis=-1)
+    asc4sum = np.copy(asc)
+    asc4sum[np.isnan(asc4sum)] = 0
+    cum_sum_asc = np.sum(asc4sum, axis=-1)
+
+    desc4sum = np.copy(desc)
+    desc4sum[np.isnan(desc4sum)] = 0
+    cum_sum_desc = np.sum(desc4sum, axis=-1)
+
     avg_coh_asc = np.average(coh_asc, axis=-1)
     avg_coh_desc = np.average(coh_desc, axis=-1)
     masked_cum_sum_asc = _mask_by_coherence(cum_sum_asc, avg_coh_asc, CONFIG.cumulative_coherence_threshold)
