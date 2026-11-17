@@ -147,6 +147,8 @@ class UTAE(nn.Module):
         pad_mask = (
             (input == self.pad_value).all(dim=-1).all(dim=-1).all(dim=-1)
         )  # BxT pad mask
+        print("pad_mask shape:", pad_mask.shape)
+        print("pad_mask type:",pad_mask.type)
         out = self.in_conv.smart_forward(input)
         print("First encoder type:",out.type)
         feature_maps = [out]
