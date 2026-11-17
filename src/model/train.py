@@ -131,7 +131,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
             train_bar.set_description(f'Epoch: [{epoch}/{len_epoch}], Loss: {loss.item():.4f}')
             
         epoch_loss = total_loss / total_num
-        proj.log_metric("loss", epoch_loss)
+        proj.log_metrics("loss", epoch_loss)
 
         model.eval()
         total_loss, total_num, train_bar = 0.0, 0, tqdm(valid_data_loader)
@@ -152,7 +152,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
             train_bar.set_description(f'Epoch: [{epoch}/{len_epoch}], Val Loss: {loss.item():.4f}')
 
         val_loss = total_loss / total_num
-        proj.log_metric("val_loss", val_loss)
+        proj.log_metrics("val_loss", val_loss)
         
         if val_loss < best_loss:
             filename = os.path.join(result_path,'model_best.pth')
