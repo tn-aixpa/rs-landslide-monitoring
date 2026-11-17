@@ -136,7 +136,8 @@ class UTAE(nn.Module):
             d_k=d_k,
             anomaly_attention=self.anomaly_attention,
             win_size=win_size,
-            output_attention=output_attention
+            output_attention=output_attention,
+            positional_encoding=False
         )
         self.temporal_aggregator = Temporal_Aggregator(mode=agg_mode)
         self.out_conv = ConvBlock(nkernels=[decoder_widths[0]] + out_conv, padding_mode=padding_mode)
