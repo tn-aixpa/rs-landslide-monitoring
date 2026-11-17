@@ -97,6 +97,7 @@ class LTAE2d(nn.Module):
     def forward(self, x, batch_positions=None, pad_mask=None, return_comp=False):
         sz_b, seq_len, d, h, w = x.shape
         if pad_mask is not None:
+            print("LTAE pad_mask type:",pad_mask.type())
             pad_mask = (
                 pad_mask.unsqueeze(-1)
                 .repeat((1, 1, h))
@@ -114,6 +115,7 @@ class LTAE2d(nn.Module):
             out = self.inconv(out.permute(0, 2, 1)).permute(0, 2, 1)
 
         if self.positional_encoder is not None:
+            print("LTAE batch_positions type:",batch_positions.type())
             bp = (
                 batch_positions.unsqueeze(-1)
                 .repeat((1, 1, h))
@@ -218,9 +220,11 @@ class ScaledDotProductAttention(nn.Module):
         self.softmax = nn.Softmax(dim=2)
 
     def forward(self, q, k, v, pad_mask=None, return_comp=False):
+        print("ScaledDotProductAttention q type:",q.type())
         attn = torch.matmul(q.unsqueeze(1), k.transpose(1, 2))
         attn = attn / self.temperature
         if pad_mask is not None:
+            print("ScaledDotProductAttention pad_mask type:",pad_mask.type())
             attn = attn.masked_fill(pad_mask.unsqueeze(1), -1e3)
         if return_comp:
             comp = attn
