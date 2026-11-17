@@ -234,7 +234,7 @@ def main(parsed):
     proj_name = parsed.project
     patch_size = int(parsed.patch_size)
     offset_scale = int(parsed.offset_scale)
-    non_valid_perc = float(parsed.non_valid_perc)
+    valid_perc = 1.0-float(parsed.non_valid_perc)
     data_path = os.path.join(maindir, data_folder, input_folder)
     output_path = os.path.join(maindir, data_folder, output_folder)
     training_path = os.path.join(output_path,"training")
@@ -314,7 +314,7 @@ def main(parsed):
         for j in range(n_split_cols):
             patch = imageTS[:,:,(i*offset):(i*offset)+patch_size,(j*offset):(j*offset)+patch_size]
             valid_patch = valid_area_map[(i*offset):(i*offset)+patch_size,(j*offset):(j*offset)+patch_size]
-            if np.sum(valid_patch)>0 and not np.all(np.isnan(patch[:,:2,:,:])):
+            if np.sum(valid_patch)>(valid_perc*patch_size**2) and not np.all(np.isnan(patch[:,:2,:,:])):
                 dataset.append(patch)
 
     dataset = np.asarray(dataset, np.float32)
