@@ -127,19 +127,20 @@ class UTAE(nn.Module):
             )
             for i in range(self.n_stages - 1, 0, -1)
         )
-        self.temporal_encoder = LTAE2d(
-            in_channels=encoder_widths[-1],
-            d_model=d_model,
-            n_head=n_head,
-            mlp=[d_model, encoder_widths[-1]],
-            return_att=True,
-            d_k=d_k,
-            anomaly_attention=self.anomaly_attention,
-            win_size=win_size,
-            output_attention=output_attention,
-            positional_encoding=False
-        )
-        self.temporal_aggregator = Temporal_Aggregator(mode=agg_mode)
+        # self.temporal_encoder = LTAE2d(
+        #     in_channels=encoder_widths[-1],
+        #     d_model=d_model,
+        #     n_head=n_head,
+        #     mlp=[d_model, encoder_widths[-1]],
+        #     return_att=True,
+        #     d_k=d_k,
+        #     anomaly_attention=self.anomaly_attention,
+        #     win_size=win_size,
+        #     output_attention=output_attention,
+        #     positional_encoding=False
+        # )
+        self.temporal_encoder = ConvLSTM(encoder_widths[-1],d_model,kernel_size=(3, 3), num_layers=1, batch_first=True, bias=True, return_all_layers=False)
+        #self.temporal_aggregator = Temporal_Aggregator(mode=agg_mode)
         self.out_conv = ConvBlock(nkernels=[decoder_widths[0]] + out_conv, padding_mode=padding_mode)
 
     def forward(self, input, batch_positions=None, return_att=False):
@@ -162,16 +163,19 @@ class UTAE(nn.Module):
                 feature_maps[-1], batch_positions=batch_positions, pad_mask=pad_mask
             )
         else:
-            out, att = self.temporal_encoder(
-                feature_maps[-1], batch_positions=batch_positions, pad_mask=pad_mask
-            )
+            # out, att = self.temporal_encoder(
+            #     feature_maps[-1], batch_positions=batch_positions, pad_mask=pad_mask
+            # )
+            out, _ = self.temporal_encoder(feature_maps[-1])
+            out = out[0]
         # SPATIAL DECODER
         if self.return_maps:
             maps = [out]
         for i in range(self.n_stages - 1):
-            skip = self.temporal_aggregator(
-                feature_maps[-(i + 2)], pad_mask=pad_mask, attn_mask=att
-            )
+            # skip = self.temporal_aggregator(
+            #     feature_maps[-(i + 2)], pad_mask=pad_mask, attn_mask=att
+            # )
+            skip = feature_maps[-(i + 2)]
             print(f"skip {i} shape: {skip.shape}")
             print(f"decoder layer {i} shape: {out.shape}")
             out = self.up_blocks[i].smart_forward(out, skip)
