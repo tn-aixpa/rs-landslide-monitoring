@@ -145,18 +145,18 @@ class UTAE(nn.Module):
         self.out_conv = ConvBlock(nkernels=[decoder_widths[0]] + out_conv, padding_mode=padding_mode)
 
     def forward(self, input, batch_positions=None, return_att=False):
-        print("input shape:", input.shape)
+        # print("input shape:", input.shape)
         # print("input type:",input.type())
         pad_mask = (
             (input == self.pad_value).all(dim=-1).all(dim=-1).all(dim=-1)
         )  # BxT pad mask
         out = self.in_conv.smart_forward(input)
-        print("First encoder shape:",out.shape)
+        # print("First encoder shape:",out.shape)
         feature_maps = [out]
         # SPATIAL ENCODER
         for i in range(self.n_stages - 1):
             out = self.down_blocks[i].smart_forward(feature_maps[-1])
-            print(f"encoder layer {i} shape: {out.shape}")
+            # print(f"encoder layer {i} shape: {out.shape}")
             feature_maps.append(out)
         # TEMPORAL ENCODER
         if self.anomaly_attention:
@@ -177,8 +177,8 @@ class UTAE(nn.Module):
             #     feature_maps[-(i + 2)], pad_mask=pad_mask, attn_mask=att
             # )
             skip = feature_maps[-(i + 2)]
-            print(f"skip {i} shape: {skip.shape}")
-            print(f"decoder layer {i} shape: {out.shape}")
+            # print(f"skip {i} shape: {skip.shape}")
+            # print(f"decoder layer {i} shape: {out.shape}")
             out = self.up_blocks[i].smart_forward(out, skip)
             if self.return_maps:
                 maps.append(out)
@@ -305,7 +305,7 @@ class ConvLayer(nn.Module):
         else:
             nl = None
         for i in range(len(nkernels) - 1):
-            print(nkernels[i], nkernels[i + 1])
+            # print(nkernels[i], nkernels[i + 1])
             layers.append(
                 nn.Conv2d(
                     in_channels=nkernels[i],
