@@ -176,7 +176,7 @@ class UTAE(nn.Module):
             # skip = self.temporal_aggregator(
             #     feature_maps[-(i + 2)], pad_mask=pad_mask, attn_mask=att
             # )
-            skip = feature_maps[-(i + 1)]
+            skip = feature_maps[-(i + 2)]
             print(f"skip {i} shape: {skip.shape}")
             print(f"decoder layer {i} shape: {out.shape}")
             out = self.up_blocks[i].smart_forward(out, skip)
