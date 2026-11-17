@@ -197,10 +197,10 @@ class MultiHeadAttention(nn.Module):
                 q, k, v, pad_mask=pad_mask, return_comp=return_comp
             )
         attn = attn.view(n_head, sz_b, 1, seq_len)
-        attn = attn.squeeze(dim=2)
+        #attn = attn.squeeze(dim=2)
 
         output = output.view(n_head, sz_b, 1, d_in // n_head)
-        output = output.squeeze(dim=2)
+        #output = output.squeeze(dim=2)
 
         if return_comp:
             return output, attn, comp
