@@ -614,20 +614,28 @@ def run(json_input: dict) -> None:
     ew_displ_maps4sum = np.copy(ew_displ_maps)
     ew_displ_maps4sum[np.isnan(ew_displ_maps4sum)]=0
     cum_sum_ew_displ_map = np.sum(ew_displ_maps4sum, axis=-1)
+    del ew_displ_maps4sum
+    gc.collect()
     masked_cum_sum_ew_displ_map = _mask_by_coherence(cum_sum_ew_displ_map, avg_coh_map, CONFIG.cumulative_coherence_threshold)
 
     v_displ_maps4sum = np.copy(v_displ_maps)
     v_displ_maps4sum[np.isnan(v_displ_maps4sum)]=0
     cum_sum_v_displ_map = np.sum(v_displ_maps4sum, axis=-1)
+    del v_displ_maps4sum
+    gc.collect()
     masked_cum_sum_v_displ_map = _mask_by_coherence(cum_sum_v_displ_map, avg_coh_map, CONFIG.cumulative_coherence_threshold)
 
     asc4sum = np.copy(asc)
     asc4sum[np.isnan(asc4sum)] = 0
     cum_sum_asc = np.sum(asc4sum, axis=-1)
+    del asc4sum
+    gc.collect()
 
     desc4sum = np.copy(desc)
     desc4sum[np.isnan(desc4sum)] = 0
     cum_sum_desc = np.sum(desc4sum, axis=-1)
+    del desc4sum
+    gc.collect()
 
     avg_coh_asc = np.average(coh_asc, axis=-1)
     avg_coh_desc = np.average(coh_desc, axis=-1)
