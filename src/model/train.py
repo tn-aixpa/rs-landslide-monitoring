@@ -109,7 +109,7 @@ def main(proj_name,batch_size=128,in_channels=3,learning_rate=0.0001,weight_deca
         model.train()
         total_loss, total_num, train_bar = 0.0, 0, tqdm(data_loader)
         for im, target in train_bar:
-            print("Input image type ",im.type())
+            #print("Input image type ",im.type())
             im, target = im.to(non_blocking=True, device=device), target.to(non_blocking=True, device=device)
             optimizer.zero_grad()
             if anomaly_attention:
