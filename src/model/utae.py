@@ -139,7 +139,8 @@ class UTAE(nn.Module):
         #     output_attention=output_attention,
         #     positional_encoding=False
         # )
-        self.temporal_encoder = ConvLSTM(encoder_widths[-1],d_model,kernel_size=(3, 3), num_layers=1, batch_first=True, bias=True, return_all_layers=False)
+        self.temporal_encoder = ConvLSTM(encoder_widths[-1],encoder_widths[-1],kernel_size=(3, 3), 
+                                         num_layers=1, batch_first=True, bias=True, return_all_layers=False)
         #self.temporal_aggregator = Temporal_Aggregator(mode=agg_mode)
         self.out_conv = ConvBlock(nkernels=[decoder_widths[0]] + out_conv, padding_mode=padding_mode)
 
@@ -175,7 +176,7 @@ class UTAE(nn.Module):
             # skip = self.temporal_aggregator(
             #     feature_maps[-(i + 2)], pad_mask=pad_mask, attn_mask=att
             # )
-            skip = feature_maps[-(i + 2)]
+            skip = feature_maps[-(i + 1)]
             print(f"skip {i} shape: {skip.shape}")
             print(f"decoder layer {i} shape: {out.shape}")
             out = self.up_blocks[i].smart_forward(out, skip)
