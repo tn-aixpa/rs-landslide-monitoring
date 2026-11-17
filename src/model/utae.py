@@ -212,9 +212,38 @@ class TemporallySharedBlock(nn.Module):
         self.out_shape = None
         self.pad_value = pad_value
 
-    def smart_forward(self, input):
+    def smart_forward(self, input, input2=None):
         if len(input.shape) == 4:
             return self.forward(input)
+        elif input2 is not None:
+            b, t, c, h, w = input.shape
+            b2, t2, c2, h2, w2 = input2.shape
+            
+            if self.pad_value is not None:
+                dummy = torch.zeros(input.shape, device=input.device).float()
+                self.out_shape = self.forward(dummy.reshape(b * t, c, h, w)).shape
+
+            out = input.reshape(b * t, c, h, w)
+            out2 = input2.reshape(b2 * t2, c2, h2, w2)
+            if self.pad_value is not None:
+                pad_mask = (out == self.pad_value).all(dim=-1).all(dim=-1).all(dim=-1)
+                pad_mask2 = (out2 == self.pad_value).all(dim=-1).all(dim=-1).all(dim=-1)
+                if pad_mask.any() or pad_mask2.any():
+                    temp = (
+                        torch.ones(
+                            self.out_shape, device=input.device, requires_grad=False
+                        )
+                        * self.pad_value
+                    )
+                    temp[~pad_mask] = self.forward(out[~pad_mask],out2[~pad_mask])
+                    out = temp
+                else:
+                    out = self.forward(out,out2)
+            else:
+                out = self.forward(out,out2)
+            _, c, h, w = out.shape
+            out = out.reshape(b, t, c, h, w)
+            return out
         else:
             b, t, c, h, w = input.shape
 
