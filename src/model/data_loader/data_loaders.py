@@ -60,3 +60,24 @@ class InSARDataset(Dataset):
             x = self.transform(x)
 
         return x, x
+
+class InferenceDataset(Dataset):
+    def __init__(self, dataset:np.float32):
+        """
+        data_path (str): path to directory containing Sentinel-2 input files (C, T, H, W).
+        transform (torchvision.transform): data augmentation operations (default None).
+        """
+        self.dataset = dataset
+
+    def __len__(self):
+        return self.dataset.shape[0]
+
+    def __getitem__(self, idx):
+        # lazy load (only this sample)
+        x = self.dataset[idx]        # (C, T, H, W)
+
+        x[np.isnan(x)] = 0
+
+        x = torch.tensor(x, dtype=torch.float32)
+
+        return x
