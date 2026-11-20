@@ -588,19 +588,22 @@ def main(config):
         dataset_artifact = proj.get_artifact("Dataset")
         dataset_path = dataset_artifact.download(dataset_folder,overwrite=True)
         data_loader = InSARDataLoader(os.path.join(dataset_path,"training"), batch_size=batch_size,
-                                  shuffle=True, num_workers=8,augmentations=True,drop_last=True)
+                                  shuffle=False, num_workers=8,augmentations=False,drop_last=True)
         predictions = []
-
+        inputs = []
         for im, _ in data_loader:
+            inputs.append(im.cpu().numpy())
             im = im.to(non_blocking=True, device=device)
             with torch.no_grad():
                 output = model(im)#.encoder_q(im_1,im_2)
                 output = output.cpu().numpy()
                 predictions.append(output)
         predictions = np.concatenate(predictions,axis=0)
-        th = np.mean(predictions,axis=(0,1,3,4))+np.std(predictions,axis=(0,1,3,4))
-        # th_v = np.mean(predictions[:,:,0,:,:],axis=(0,2,3))+np.std(predictions[:,:,0,:,:],axis=(0,2,3))
-        # th_h = np.mean(predictions[:,:,1,:,:],axis=(0,2,3))+np.std(predictions[:,:,1,:,:],axis=(0,2,3))
+        inputs = np.concatenate(inputs,axis=0)
+        mse = np.power(predictions-inputs,2)
+        th = np.mean(mse,axis=(0,1,3,4))+np.std(mse,axis=(0,1,3,4))
+        # th_v = np.mean(mse[:,:,0,:,:],axis=(0,2,3))+np.std(mse[:,:,0,:,:],axis=(0,2,3))
+        # th_h = np.mean(mse[:,:,1,:,:],axis=(0,2,3))+np.std(mse[:,:,1,:,:],axis=(0,2,3))
         logger.info('Threshold for normal data: {}'.format(th))
         #save on json file
         threshold_path = os.path.join(result_path, "threshold.json")
@@ -672,12 +675,15 @@ def main(config):
 
 
     logger.info("Anomaly detection")
-    anomaly_map = np.logical_and(np.any(output_image[:,0,:,:]>th[0],axis=0),
-                                 np.any(output_image[:,1,:,:]>th[1],axis=0))#np.all(output_image[:,:2,:,:]>th[:2],axis=(0,1))
-    imageTS[:,0,:,:][np.logical_or(imageTS[:,0,:,:]>0.55,imageTS[:,0,:,:]<-0.55)]=0
-    imageTS[:,1,:,:][np.logical_or(imageTS[:,1,:,:]>0.55,imageTS[:,1,:,:]<-0.55)]=0
-    # # control_vertical = np.logical_and(np.all(imageTS[:,0,:,:]<2,axis=0),np.all(imageTS[:,0,:,:]>-2,axis=0))
-    # # control_horizontal = np.logical_and(np.all(imageTS[:,1,:,:]<2,axis=0),np.all(imageTS[:,1,:,:]>-2,axis=0))
+    mse_map = np.power(output_image-imageTS,2)
+    anomaly_map = np.logical_and(np.any(mse_map[:,0,:,:]>th[0],axis=0),
+                                 np.any(mse_map[:,1,:,:]>th[1],axis=0))#np.all(output_image[:,:2,:,:]>th[:2],axis=(0,1))
+    # imageTS[:,0,:,:][np.logical_or(imageTS[:,0,:,:]>0.55,imageTS[:,0,:,:]<-0.55)]=0
+    # imageTS[:,1,:,:][np.logical_or(imageTS[:,1,:,:]>0.55,imageTS[:,1,:,:]<-0.55)]=0
+    control_mask_v = np.logical_and(np.any(imageTS[:,0,:,:]<0.55,axis=0),np.any(imageTS[:,0,:,:]>-0.55,axis=0))
+    control_mask_h = np.logical_and(np.any(imageTS[:,1,:,:]<0.55,axis=0),np.any(imageTS[:,1,:,:]>-0.55,axis=0))
+    control_mask = np.logical_or(control_mask_v,control_mask_h)
+    anomaly_map = np.logical_and(anomaly_map,control_mask)
     # anomaly_map = np.logical_and(np.any(imageTS[:,0,:,:]>th,axis=0),np.any(imageTS[:,1,:,:]>th,axis=0))
 
     logger.info("Creazione vettoriali")
