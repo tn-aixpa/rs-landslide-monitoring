@@ -42,7 +42,7 @@ class InSARDataset(Dataset):
         data_path (str): path to directory containing Sentinel-2 input files (C, T, H, W).
         transform (torchvision.transform): data augmentation operations (default None).
         """
-        self.files = [os.path.join(data_path, f) for f in os.listdir(data_path) if f.endswith('.npy')]
+        self.files = [os.path.join(data_path, f) for f in sorted(os.listdir(data_path)) if f.endswith('.npy')]
         self.transform = transform
 
     def __len__(self):
@@ -51,6 +51,7 @@ class InSARDataset(Dataset):
     def __getitem__(self, idx):
         # lazy load (only this sample)
         x = np.load(self.files[idx])        # (C, T, H, W)
+        #print(self.files[idx])
 
         x[np.isnan(x)] = 0
 
