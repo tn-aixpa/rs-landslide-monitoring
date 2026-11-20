@@ -6,7 +6,7 @@ Created on Fri Dec  1 17:53:21 2023
 @author: lbergamasco
 """
 
-import os,sys
+import os,sys,gc
 import torch
 from data_loader.data_loaders import InSARDataLoader
 from utae import UTAE
@@ -437,17 +437,15 @@ def _require(json_input: dict, key: str) -> str:
         raise ValueError(f"Parametro obbligatorio mancante o vuoto nell'input JSON: '{key}'.")
     return value
 
-def dataset_from_image(image, patch_size, step=22):
+def dataset_from_image(image, patch_size, n_step_h, n_step_w, step=44):
     """
     image: (T, C, H, W)
     patch_size: size of each patch (square)
     step: step size for patching (default is equal to patch_size for non-overlapping patches)
     returns: (N, T, C, patch_size, patch_size) where N is the number of patches
     """
-    n_step_h = ((image.shape[2]-patch_size)//step)+1
-    n_step_w = ((image.shape[3]-patch_size)//step)+1
-    print(n_step_h)
-    print(n_step_w)
+    #n_step_h = image.shape[2]//mini((image.shape[2]-patch_size)//step)+1
+    #n_step_w = ((image.shape[3]-patch_size)//step)+1
     output = np.zeros([n_step_h*n_step_w,image.shape[0],image.shape[1],patch_size,patch_size], dtype=np.float32)
     k=0
     for i in range(n_step_h):
@@ -484,9 +482,11 @@ def main(config):
 
     model_name = _require(config,"model_name")
     batch_size = int(_require(config,"batch_size"))
-    comp_thresh = bool(_require(config,"compute_threshold"))
+    comp_thresh = _require(config,"compute_threshold").lower() == 'true'
     patch_size = int(_require(config,"patch_size"))
-    th = float(config.get("th"))
+    th = config.get("th") or None
+    if th is not None:
+        th = float(th)
 
     maindir = "."
     data_folder = "data"
@@ -502,9 +502,10 @@ def main(config):
     dataset_folder = os.path.join(data_path, "dataset")
     feature_folder = os.path.join(data_path, "features")
     rainfall_map_folder = os.path.join(data_path, "rainfall_map")
+    inference_dataset_folder = os.path.join(data_path, "inference_dataset")
     checkpoint_model_folder = os.path.join(data_path,"model")
 
-    for folder in (data_path, result_path, feature_folder, rainfall_map_folder,dataset_folder):
+    for folder in (data_path, result_path, feature_folder, rainfall_map_folder,dataset_folder,inference_dataset_folder):
         os.makedirs(folder, exist_ok=True)
 
     logger.info("Scaricamento artefatti")
@@ -524,8 +525,6 @@ def main(config):
     gt = ds.GetGeoTransform()
     projection = ds.GetProjection()
     ds = None
-
-    print(os.path.join(feature_path,list_feature_path[0]))
 
     logger.info("Caricamento rainfall map")
     rainmaps_list = sorted([file for file in os.listdir(rainfall_map_path)])
@@ -552,7 +551,8 @@ def main(config):
         horizontal_displ_sum_ds = gdal.Open(os.path.join(f_path,"somma_cumulata_spostamento_orizzontale.tif"), gdal.GA_ReadOnly)
         imageTS[i,1,:,:] = resize_array(horizontal_displ_sum_ds.GetRasterBand(1).ReadAsArray(),(rows,cols))
         horizontal_displ_sum_ds = None
-    imageTS[:,2,:,:] = (rainmaps)
+    imageTS[:,2,:,:] = np.copy(rainmaps)
+    del rainmaps
     logger.info("Normalizzazione")
     #normalization
     imageTS[:,0,:,:] = normalize_in_range(imageTS[:,0,:,:],feat_range=[-0.55,0.55], min_value=-1, max_value=1)
@@ -563,7 +563,7 @@ def main(config):
     in_channels = imageTS.shape[1]
 
     # build model architecture
-    model = UTAE(in_channels=in_channels,out_conv=[32,in_channels],input_channel_first=True)
+    model = UTAE(in_channels=in_channels,out_conv=[32,in_channels])
 
     logger.info('Loading checkpoint: {} ...'.format(model_name))
 
@@ -573,10 +573,10 @@ def main(config):
     #checkpoint.spec.parameters
     cp.download(checkpoint_model_folder, overwrite=True)
     checkpoint = torch.load(os.path.join(checkpoint_model_folder,model_name), map_location=torch.device('cpu'), weights_only=False)
-    state_dict = checkpoint['state_dict']
+    #state_dict = checkpoint['state_dict']
     if n_gpu > 1:
         model = torch.nn.DataParallel(model)
-    model.load_state_dict(state_dict)
+    model.load_state_dict(checkpoint)
 
     # prepare model for testing
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -598,52 +598,66 @@ def main(config):
                 output = output.cpu().numpy()
                 predictions.append(output)
         predictions = np.concatenate(predictions,axis=0)
-        th = np.mean(predictions,axis=(0,2,3,4))+np.std(predictions,axis=(0,2,3,4))
-        print('Threshold for normal data: {}'.format(th))
+        th = np.mean(predictions,axis=(0,1,3,4))+np.std(predictions,axis=(0,1,3,4))
+        # th_v = np.mean(predictions[:,:,0,:,:],axis=(0,2,3))+np.std(predictions[:,:,0,:,:],axis=(0,2,3))
+        # th_h = np.mean(predictions[:,:,1,:,:],axis=(0,2,3))+np.std(predictions[:,:,1,:,:],axis=(0,2,3))
+        logger.info('Threshold for normal data: {}'.format(th))
         #save on json file
         threshold_path = os.path.join(result_path, "threshold.json")
-        thresh_dict = {"threshold":th}
+        thresh_dict = {"threshold":th.tolist()}
         with open(threshold_path, "w") as f:
             json.dump(thresh_dict, f)
-        proj.log_artifact(name=proj_name, kind="artifact", source=threshold_path)
-    elif not comp_thresh:
+        proj.log_artifact(name="threshold", kind="artifact", source=threshold_path)
+        del predictions
+    else:
         logger.info("Recupero soglie per anomaly detection")
-        threshold_artifact = proj.get_artifact("threshdold")
+        threshold_artifact = proj.get_artifact("threshold")
         threshold_path = threshold_artifact.download(data_path,overwrite=True)
         with open(threshold_path, "r") as f:
             thresh_dict = json.load(f)
         th = thresh_dict["threshold"]
 
     logger.info("Processing image time series")
-    to_add_first_rows = imageTS.shape[2]%patch_size
-    to_add_first_cols = imageTS.shape[3]%patch_size
     buffer = patch_size//3
     mini_patch_size = patch_size-(buffer*2)
-    imageTS_padded = np.pad(imageTS, ((0,0), (0,0), (0, to_add_first_rows), (0, to_add_first_cols)), 'reflect')
-    imageTS_padded = np.pad(imageTS_padded, ((0,0), (0,0), (buffer,buffer), (buffer,buffer)), 'reflect')
-    imageTS_reshaped = dataset_from_image(imageTS_padded,patch_size=patch_size,step=buffer)
-    imageTS_reshaped = torch.from_numpy(imageTS_reshaped).to(device)
-    test_dataset = torch.utils.data.TensorDataset(imageTS_reshaped) # (N,C,T,H,W)
+    to_add_first_rows = mini_patch_size-(imageTS.shape[2]%mini_patch_size)
+    to_add_first_cols = mini_patch_size-(imageTS.shape[3]%mini_patch_size)
+    imageTS_padded = np.pad(imageTS, ((0,0), (0,0), (0, to_add_first_rows), (0, to_add_first_cols)), 'symmetric')
+    n_step_h = imageTS_padded.shape[2]//mini_patch_size
+    n_step_w = imageTS_padded.shape[3]//mini_patch_size
+    imageTS_padded = np.pad(imageTS_padded, ((0,0), (0,0), (buffer,buffer), (buffer,buffer)), 'symmetric')
+    imageTS_reshaped = dataset_from_image(imageTS_padded,patch_size=patch_size, n_step_h=n_step_h, n_step_w=n_step_w,step=mini_patch_size)
+    for i in range(len(imageTS_reshaped)):
+        np.save(os.path.join(inference_dataset_folder,f"{i:06d}.npy"),imageTS_reshaped[i])
+    del imageTS_padded,imageTS_reshaped
+    gc.collect()
+    #imageTS_reshaped[np.isnan(imageTS_reshaped)] = 0
+    # imageTS_reshaped = torch.from_numpy(imageTS_reshaped)#.to(device)
+    # test_dataset = torch.utils.data.TensorDataset(imageTS_reshaped) # (N,C,T,H,W)
+    # test_dataset = InferenceDataset(imageTS_reshaped)
 
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False # adjust batch_size to fit GPU
-    )
+    # test_loader = torch.utils.data.DataLoader(
+    #     test_dataset, batch_size=batch_size, shuffle=False # adjust batch_size to fit GPU
+    # )
+    test_loader = InSARDataLoader(inference_dataset_folder,batch_size=batch_size,shuffle=False,
+                                  num_workers=1, augmentations=False)
     preds = []
     with torch.no_grad():
-        for im in test_loader:
+        for im,_ in test_loader:
             im = im.to(device)  # unpack tuple
             out= model(im)
-            preds.append(im.cpu())
+            preds.append(out.cpu().numpy().astype(np.float16))
 
-        preds = torch.cat(preds).numpy()
-        print('preds', preds.shape)
-
-    results_unpadded = preds[:,buffer:(buffer+mini_patch_size),buffer:(buffer+mini_patch_size)]
-
+        preds = np.concatenate(preds,axis=0)
+    gc.collect()
+    results_unpadded = preds[:,:,:,buffer:(buffer+mini_patch_size),buffer:(buffer+mini_patch_size)]
+    del preds
     output_image = reconstruct_from_patches(results_unpadded, 
-                                            full_size=(imageTS.shape[2]+to_add_first_rows,imageTS.shape[2]+to_add_first_rows), 
+                                            full_size=(imageTS.shape[2]+to_add_first_rows,imageTS.shape[3]+to_add_first_rows), 
                                             patch_size=mini_patch_size)
+    del results_unpadded
     output_image = output_image[:,:,:imageTS.shape[2],:imageTS.shape[3]]
+    gc.collect()
 
     # imageTS = np.zeros([len(list_feature_path),2,rows,cols],np.float32)
     # for i, path in enumerate(list_feature_path):
@@ -658,9 +672,10 @@ def main(config):
 
 
     logger.info("Anomaly detection")
-    anomaly_map = np.all(output_image>th,axis=(0,1))
-    # imageTS[:,0,:,:][np.logical_or(imageTS[:,0,:,:]>0.55,imageTS[:,0,:,:]<-0.55)]=0
-    # imageTS[:,1,:,:][np.logical_or(imageTS[:,1,:,:]>0.55,imageTS[:,1,:,:]<-0.55)]=0
+    anomaly_map = np.logical_and(np.any(output_image[:,0,:,:]>th[0],axis=0),
+                                 np.any(output_image[:,1,:,:]>th[1],axis=0))#np.all(output_image[:,:2,:,:]>th[:2],axis=(0,1))
+    imageTS[:,0,:,:][np.logical_or(imageTS[:,0,:,:]>0.55,imageTS[:,0,:,:]<-0.55)]=0
+    imageTS[:,1,:,:][np.logical_or(imageTS[:,1,:,:]>0.55,imageTS[:,1,:,:]<-0.55)]=0
     # # control_vertical = np.logical_and(np.all(imageTS[:,0,:,:]<2,axis=0),np.all(imageTS[:,0,:,:]>-2,axis=0))
     # # control_horizontal = np.logical_and(np.all(imageTS[:,1,:,:]<2,axis=0),np.all(imageTS[:,1,:,:]>-2,axis=0))
     # anomaly_map = np.logical_and(np.any(imageTS[:,0,:,:]>th,axis=0),np.any(imageTS[:,1,:,:]>th,axis=0))
@@ -672,13 +687,14 @@ def main(config):
                                                   polygon_path=os.path.join(result_path,f"anomaly_map_poly_{start_date}_{end_date}.geojson"),
                                                   centroid_path=os.path.join(result_path,f"anomaly_map_centroid_{start_date}_{end_date}.geojson"),
                                                   connectedness=8,
-                                                  min_area=None,
+                                                  min_area=1800,
                                                   point_on_surface=True
                                                   )
     if polygon_path is None:
         logger.warning("Exiting from the process since no anomaly area has been detected")
         return
     else:
+        field_names = [dates[-8:] for dates in list_feature_path]
         centroid_path_ver = add_polygon_time_series_means(
             polygon_path=polygon_path,
             centroid_path=centroid_path,
@@ -686,7 +702,7 @@ def main(config):
             geo_transform=gt,
             projection=projection,
             output_path=os.path.join(result_path,f"anomaly_map_centroid_{start_date}_{end_date}_vertical.geojson"),
-            field_names=list_feature_path,
+            field_names=field_names,
             all_touched=False
         )
         centroid_path_ew = add_polygon_time_series_means(
@@ -696,7 +712,7 @@ def main(config):
                 geo_transform=gt,
                 projection=projection,
                 output_path=os.path.join(result_path,f"anomaly_map_centroid_{start_date}_{end_date}_ew.geojson"),
-                field_names=list_feature_path,
+                field_names=field_names,
                 all_touched=False
             )
         logger.info("Salvataggio artefatto")
